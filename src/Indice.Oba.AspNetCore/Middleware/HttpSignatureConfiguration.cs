@@ -28,6 +28,7 @@ public static class HttpSignatureConfiguration
             services.AddSingleton(options);
             builder.Options = options;
         }
+        builder.Services.AddSingleton<IHttpClientValidationKeysStore, DefaultHttpClientValidationKeysStore>();
         return builder;
     }
 

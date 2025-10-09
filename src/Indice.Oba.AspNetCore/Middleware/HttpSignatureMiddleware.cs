@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -34,8 +33,8 @@ public class HttpSignatureMiddleware
     /// <param name="options"></param>
     /// <param name="systemClock"></param>
     public HttpSignatureMiddleware(
-        RequestDelegate next, 
-        HttpSignatureOptions options, 
+        RequestDelegate next,
+        HttpSignatureOptions options,
         ISystemClock systemClock
     ) {
         _next = next ?? throw new ArgumentNullException(nameof(next));
@@ -53,33 +52,44 @@ public class HttpSignatureMiddleware
         var mustValidate = _options.RequestValidation && _options.TryMatch(httpContext, out headerNames);
         if (mustValidate || httpContext.Request.Headers.ContainsKey(HttpSignature.HTTPHeaderName)) {
             var rawSignature = httpContext.Request.Headers[HttpSignature.HTTPHeaderName];
-            Debug.WriteLine($"{nameof(HttpSignatureMiddleware)}: Raw Signature: {rawSignature}");
+            logger.LogDebug($"{nameof(HttpSignatureMiddleware)}: Raw Signature: {rawSignature}");
             var rawDigest = httpContext.Request.Headers[HttpDigest.HTTPHeaderName];
-            Debug.WriteLine($"{nameof(HttpSignatureMiddleware)}: Raw Digest: {rawDigest}");
+            logger.LogDebug($"{nameof(HttpSignatureMiddleware)}: Raw Digest: {rawDigest}");
             var rawCertificate = httpContext.Request.Headers[_options.RequestSignatureCertificateHeaderName];
-            Debug.WriteLine($"{nameof(HttpSignatureMiddleware)}: Raw Certificate: {rawCertificate}");
+            logger.LogDebug($"{nameof(HttpSignatureMiddleware)}: Raw Certificate: {rawCertificate}");
             if (string.IsNullOrWhiteSpace(rawSignature)) {
                 var error = $"Missing httpSignature in HTTP header '{HttpSignature.HTTPHeaderName}'. Cannot validate signature.";
                 await WriteErrorResponse(httpContext, logger, HttpStatusCode.BadRequest, error);
                 return;
             }
-            if (string.IsNullOrWhiteSpace(rawCertificate)) {
-                var error = $"Missing certificate in HTTP header '{_options.RequestSignatureCertificateHeaderName}'. Cannot validate signature.";
-                await WriteErrorResponse(httpContext, logger, HttpStatusCode.BadRequest, error);
-                return;
+
+            var validationKeys = new List<SecurityKey>();
+            if (!string.IsNullOrWhiteSpace(rawCertificate)) {
+                // Case when the client sends the public key in the corresponding header
+                X509Certificate2 cert;
+                try {
+                    cert = new X509Certificate2(Convert.FromBase64String(rawCertificate));
+                } catch {
+                    var error = $"Signature Certificate not in a valid format. Expected a base64 encoded x509.";
+                    await WriteErrorResponse(httpContext, logger, HttpStatusCode.Unauthorized, error);
+                    return;
+                }
+                validationKeys.Add(new X509SecurityKey(cert));
+            } else {
+                // Case when the client does sends the public key, and we need to retrieve it from the client validation key store
+                var clientValidationSecretsStore = httpContext.RequestServices.GetService<IHttpClientValidationKeysStore>();
+                var clientSecrets = await clientValidationSecretsStore.GetValidationKeysAsync();
+                if (!clientSecrets.Any()) {
+                    var error = $"Missing certificate in HTTP header '{_options.RequestSignatureCertificateHeaderName}'. Cannot validate signature.";
+                    await WriteErrorResponse(httpContext, logger, HttpStatusCode.BadRequest, error);
+                    return;
+                }
+                validationKeys = clientSecrets.ToList();
             }
-            X509Certificate2 cert;
-            try {
-                cert = new X509Certificate2(Convert.FromBase64String(rawCertificate));
-            } catch {
-                var error = $"Signature Certificate not in a valid format. Expected a base64 encoded x509.";
-                await WriteErrorResponse(httpContext, logger, HttpStatusCode.Unauthorized, error);
-                return;
-            }
-            var validationKey = new X509SecurityKey(cert);
-            Debug.WriteLine($"{nameof(HttpSignatureMiddleware)}: Validation Key: {validationKey.KeyId}");
+
+            logger.LogDebug($"{nameof(HttpSignatureMiddleware)}: Validation Keys: '{string.Join(", ", validationKeys.Select(x => x.KeyId))}'");
             var httpSignature = HttpSignature.Parse(rawSignature);
-            Debug.WriteLine($"{nameof(HttpSignatureMiddleware)}: HTTP Signature: {httpSignature}");
+            logger.LogDebug($"{nameof(HttpSignatureMiddleware)}: HTTP Signature: {httpSignature}");
             var requestBody = Array.Empty<byte>();
             switch (httpContext.Request.Method) {
                 case "POST":
@@ -97,7 +107,7 @@ public class HttpSignatureMiddleware
                     return;
                 }
                 var httpDigest = HttpDigest.Parse(rawDigest);
-                Debug.WriteLine($"{nameof(HttpSignatureMiddleware)}: HTTP Digest: {httpDigest}");
+                logger.LogDebug($"{nameof(HttpSignatureMiddleware)}: HTTP Digest: {httpDigest}");
                 var digestIsValid = httpDigest.Validate(requestBody);
                 if (!digestIsValid) {
                     var error = $"Digest validation failed.";
@@ -105,7 +115,15 @@ public class HttpSignatureMiddleware
                     return;
                 }
             }
-            var signatureIsValid = httpSignature.Validate(validationKey, httpContext.Request);
+
+            var signatureIsValid = false;
+            foreach (var validationKey in validationKeys) {
+                if (httpSignature.Validate(validationKey, httpContext.Request)) {
+                    signatureIsValid = true;
+                    break;
+                }
+            }
+
             if (!signatureIsValid) {
                 var error = $"Signature validation failed.";
                 await WriteErrorResponse(httpContext, logger, HttpStatusCode.Unauthorized, error);
@@ -128,9 +146,9 @@ public class HttpSignatureMiddleware
                 var signingCredentials = await signingCredentialsStore.GetSigningCredentialsAsync();
                 var validationKeys = await validationKeysStore.GetValidationKeysAsync();
                 var validationKey = validationKeys.First() as X509SecurityKey;
-                Debug.WriteLine($"{nameof(HttpSignatureMiddleware)}: Validation Key: {validationKey.KeyId}");
+                logger.LogDebug($"{nameof(HttpSignatureMiddleware)}: Validation Key: {validationKey.KeyId}");
                 var rawTarget = httpContext.GetPathAndQuery();
-                Debug.WriteLine($"{nameof(HttpSignatureMiddleware)}: Raw Target: {rawTarget}");
+                logger.LogDebug($"{nameof(HttpSignatureMiddleware)}: Raw Target: {rawTarget}");
                 var extraHeaders = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) {
                     [HttpRequestTarget.HeaderName] = new HttpRequestTarget(httpContext.Request.Method, rawTarget).ToString(),
                     [HttpDigest.HTTPHeaderName] = new HttpDigest(signingCredentials.Algorithm, content).ToString(),
@@ -151,12 +169,12 @@ public class HttpSignatureMiddleware
                             httpContext.Response.Headers.Add(responseHeaderName, extraHeaders[name]);
                         }
                         includedHeaders.Add(name, extraHeaders[name]);
-                        Debug.WriteLine($"{nameof(HttpSignatureMiddleware)}: Added Header {name}: {includedHeaders[name]}");
+                        logger.LogDebug($"{nameof(HttpSignatureMiddleware)}: Added Header {name}: {includedHeaders[name]}");
                     }
                 }
                 var signature = new HttpSignature(signingCredentials, includedHeaders, null, null);
                 httpContext.Response.Headers.Add(HttpSignature.HTTPHeaderName, signature.ToString());
-                Debug.WriteLine($"{nameof(HttpSignatureMiddleware)}: {HttpSignature.HTTPHeaderName} Header: {signature}");
+                logger.LogDebug($"{nameof(HttpSignatureMiddleware)}: {HttpSignature.HTTPHeaderName} Header: {signature}");
                 httpContext.Response.Headers.Add(_options.ResponseSignatureCertificateHeaderName, Convert.ToBase64String(validationKey.Certificate.Export(X509ContentType.Cert)));
                 // Go on with life.
                 await responseMemory.CopyToAsync(originalStream);
@@ -177,7 +195,7 @@ public class HttpSignatureMiddleware
     }
 
     private static async Task WriteErrorResponse(HttpContext httpContext, ILogger<HttpSignatureMiddleware> logger, HttpStatusCode statusCode, string error) {
-        Debug.WriteLine($"{nameof(HttpSignatureMiddleware)}: {error}");
+        logger.LogDebug($"{nameof(HttpSignatureMiddleware)}: {error}");
         logger.LogWarning(error);
         httpContext.Response.StatusCode = (int)statusCode;
         httpContext.Response.ContentType = "application/json";

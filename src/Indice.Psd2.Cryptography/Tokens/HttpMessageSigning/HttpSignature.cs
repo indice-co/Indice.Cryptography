@@ -30,6 +30,12 @@ public class HttpSignature : Dictionary<string, object>
         [SecurityAlgorithms.RsaSha256] = "rsa-sha256",
         [SecurityAlgorithms.RsaSha384] = "rsa-sha384",
         [SecurityAlgorithms.RsaSha512] = "rsa-sha512",
+        [SecurityAlgorithms.HmacSha256Signature] = "hmac-sha256",
+        [SecurityAlgorithms.HmacSha256] = "hmac-sha256",
+        [SecurityAlgorithms.HmacSha384Signature] = "hmac-sha384",
+        [SecurityAlgorithms.HmacSha384] = "hmac-sha384",
+        [SecurityAlgorithms.HmacSha512Signature] = "hmac-sha512",
+        [SecurityAlgorithms.HmacSha512] = "hmac-sha512"
     };
 
     /// <summary>
@@ -38,7 +44,10 @@ public class HttpSignature : Dictionary<string, object>
     private readonly IDictionary<string, string> InboundAlgorithmMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) {
         ["rsa-sha256"] = SecurityAlgorithms.RsaSha256Signature,
         ["rsa-sha384"] = SecurityAlgorithms.RsaSha384Signature,
-        ["rsa-sha512"] = SecurityAlgorithms.RsaSha512Signature
+        ["rsa-sha512"] = SecurityAlgorithms.RsaSha512Signature,
+        ["hmac-sha256"] = SecurityAlgorithms.HmacSha256Signature,
+        ["hmac-sha384"] = SecurityAlgorithms.HmacSha384Signature,
+        ["hmac-sha512"] = SecurityAlgorithms.HmacSha512Signature
     };
 
     /// <summary>
@@ -364,6 +373,6 @@ public class HttpSignature : Dictionary<string, object>
         }
     }
 
-    private static string GenerateMessage(IEnumerable<KeyValuePair<string, string>> headerKeyValues) => 
+    private static string GenerateMessage(IEnumerable<KeyValuePair<string, string>> headerKeyValues) =>
         string.Join("\n", headerKeyValues.Where(x => x.Value != null).Select(x => $"{x.Key.ToLowerInvariant()}: {SerializeComponent(x.Value)}"));
 }
