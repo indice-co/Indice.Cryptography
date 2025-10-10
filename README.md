@@ -7,5 +7,5 @@ To install Indice.Cryptography, run the following command in the Package Manager
 
 ```powershell
 PM> Install-Package "Indice.Cryptography"
-PM> Install-Package "Indice.Psd2.IdentityServer"
+PM> Install-Package "Indice.IdentityServer.Psd2"
 ```
