@@ -24,7 +24,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "test", "test", "{FEF9802E-7
 		test\Directory.Build.props = test\Directory.Build.props
 	EndProjectSection
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Indice.Psd2.IdentityServer", "src\Indice.Psd2.IdentityServer\Indice.Psd2.IdentityServer.csproj", "{B72932D7-243E-4CA6-8E72-6552C7AA2CD9}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Indice.Psd2.IdentityServer", "src\Indice.IdentityServer.Psd2\Indice.IdentityServer.Psd2.csproj", "{B72932D7-243E-4CA6-8E72-6552C7AA2CD9}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "samples", "samples", "{E8B4E767-D199-48DA-B25C-3DBA2C71E7ED}"
 EndProject

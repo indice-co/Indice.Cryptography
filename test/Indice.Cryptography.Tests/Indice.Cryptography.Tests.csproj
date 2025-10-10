@@ -24,6 +24,6 @@
     <!--<ProjectReference Include="..\..\samples\Indice.Oba.Host\Indice.Oba.Host.csproj" />-->
     <ProjectReference Include="..\..\src\Indice.Cryptography.AspNetCore\Indice.Cryptography.AspNetCore.csproj" />
     <ProjectReference Include="..\..\src\Indice.Cryptography\Indice.Cryptography.csproj" />
-    <ProjectReference Include="..\..\src\Indice.Psd2.IdentityServer\Indice.Psd2.IdentityServer.csproj" />
+    <ProjectReference Include="..\..\src\Indice.Psd2.IdentityServer\Indice.IdentityServer.Psd2.csproj" />
   </ItemGroup>
 </Project>
