@@ -1,0 +1,20 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup Label="Package">
+    <TargetFramework>net8.0</TargetFramework>
+    <PackageTags>Psd2;Cryptography;Utilities</PackageTags>
+    <PackageReleaseNotes>Expose header name.</PackageReleaseNotes>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="DerConverter" Version="3.0.0.82" />
+    <PackageReference Include="PemUtils" Version="3.0.0.82" />
+    <!--<PackageReference Include="System.ComponentModel.Annotations" Version="5.0.0" />-->
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.12.0" />
+    <PackageReference Include="System.Security.Cryptography.Algorithms" Version="4.3.1" />
+    <PackageReference Include="System.Security.Cryptography.Cng" Version="5.0.0" />
+    <PackageReference Include="System.Security.Cryptography.Csp" Version="4.3.0" />
+    <PackageReference Include="System.Security.Cryptography.Encoding" Version="4.3.0" />
+    <PackageReference Include="System.Security.Cryptography.Pkcs" Version="9.0.9" />
+    <PackageReference Include="System.Security.Cryptography.Primitives" Version="4.3.0" />
+    <PackageReference Include="System.Security.Cryptography.X509Certificates" Version="4.3.2" />
+  </ItemGroup>
+</Project>
