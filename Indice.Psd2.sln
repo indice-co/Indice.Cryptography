@@ -9,7 +9,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{66A73EAA-84C
 		src\Directory.Build.targets = src\Directory.Build.targets
 	EndProjectSection
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Indice.Psd2.Cryptography", "src\Indice.Psd2.Cryptography\Indice.Psd2.Cryptography.csproj", "{352918EA-3375-4EBF-B256-FF109D7AF753}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Indice.Cryptography", "src\Indice.Cryptography\Indice.Cryptography.csproj", "{352918EA-3375-4EBF-B256-FF109D7AF753}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{AFE13530-7E23-4420-9ADD-15FF2663B6A5}"
 	ProjectSection(SolutionItems) = preProject
@@ -17,20 +17,20 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		README.md = README.md
 	EndProjectSection
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Indice.Psd2.Cryptography.Tests", "test\Indice.Psd2.Cryptography.Tests\Indice.Psd2.Cryptography.Tests.csproj", "{66B31386-719D-469A-9886-12EF68013F62}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Indice.Cryptography.Tests", "test\Indice.Cryptography.Tests\Indice.Cryptography.Tests.csproj", "{66B31386-719D-469A-9886-12EF68013F62}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "test", "test", "{FEF9802E-74D6-4EB4-940C-82860B709F09}"
 	ProjectSection(SolutionItems) = preProject
 		test\Directory.Build.props = test\Directory.Build.props
 	EndProjectSection
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Indice.Psd2.IdentityServer4", "src\Indice.Psd2.IdentityServer4\Indice.Psd2.IdentityServer4.csproj", "{B72932D7-243E-4CA6-8E72-6552C7AA2CD9}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Indice.Psd2.IdentityServer", "src\Indice.Psd2.IdentityServer\Indice.Psd2.IdentityServer.csproj", "{B72932D7-243E-4CA6-8E72-6552C7AA2CD9}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "samples", "samples", "{E8B4E767-D199-48DA-B25C-3DBA2C71E7ED}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Indice.Oba.Host", "samples\Indice.Oba.Host\Indice.Oba.Host.csproj", "{98A27625-30A6-491B-B7AA-8C838C1FCA8A}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Indice.Cryptography.Host", "samples\Indice.Cryptography.Host\Indice.Cryptography.Host.csproj", "{98A27625-30A6-491B-B7AA-8C838C1FCA8A}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Indice.Oba.AspNetCore", "src\Indice.Oba.AspNetCore\Indice.Oba.AspNetCore.csproj", "{94219E55-F9F3-47A9-99BA-878198C75854}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Indice.Cryptography.AspNetCore", "src\Indice.Cryptography.AspNetCore\Indice.Cryptography.AspNetCore.csproj", "{94219E55-F9F3-47A9-99BA-878198C75854}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

@@ -3,9 +3,9 @@ Psd2 Starter kit &amp; utilities
 
 ## Installation
 
-To install Indice.Psd2.Cryptography, run the following command in the Package Manager Console. Or download it [here](https://www.nuget.org/packages/Indice.Psd2.Cryptography/)
+To install Indice.Cryptography, run the following command in the Package Manager Console. Or download it [here](https://www.nuget.org/packages/Indice.Cryptography/)
 
 ```powershell
-PM> Install-Package "Indice.Psd2.Cryptography"
-PM> Install-Package "Indice.Psd2.IdentityServer4"
+PM> Install-Package "Indice.Cryptography"
+PM> Install-Package "Indice.Psd2.IdentityServer"
 ```
