@@ -23,7 +23,7 @@ public struct NCAId
     /// <param name="twoLetterISOCountryCode"></param>
     /// <param name="supervisionAuthority"></param>
     /// <param name="pSPIdentifier"></param>
-    public NCAId(string prefix, string twoLetterISOCountryCode, string supervisionAuthority, string pSPIdentifier) {
+    public NCAId(string? prefix, string twoLetterISOCountryCode, string supervisionAuthority, string? pSPIdentifier) {
         Prefix = prefix;
         CountryCode = twoLetterISOCountryCode;
         SupervisionAuthority = supervisionAuthority;
@@ -38,7 +38,7 @@ public struct NCAId
     /// <summary>
     /// &quot;PSD&quot; literal as a G-URN prefix (Optional)
     /// </summary>
-    public string Prefix { get; }
+    public string? Prefix { get; }
 
     /// <summary>
     /// 2 character ISO 3166-1 [8] country code representing the NCA country
@@ -51,7 +51,7 @@ public struct NCAId
     /// <summary>
     /// PSP identifier (authorization number as specified by the NCA. There are no restrictions on the characters used). 
     /// </summary>
-    public string AuthorizationNumber   { get; }
+    public string? AuthorizationNumber   { get; }
 
     /// <summary>
     ///  PSP Identifier can contain prefix, followed by colon ":", including type of institution, as listed in
@@ -62,7 +62,8 @@ public struct NCAId
     /// </summary>
     public string InstitutionType {
         get {
-            return AuthorizationNumber.StartsWith("CI:") ? "CI" :
+            return string.IsNullOrEmpty(AuthorizationNumber) ? string.Empty :
+                   AuthorizationNumber.StartsWith("CI:") ? "CI" :
                    AuthorizationNumber.StartsWith("PI:") ? "PI" :
                    AuthorizationNumber.StartsWith("EMI:") ? "EMI" : string.Empty;
         }

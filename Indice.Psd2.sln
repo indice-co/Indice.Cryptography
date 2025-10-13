@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 17
-VisualStudioVersion = 17.6.33815.320
+# Visual Studio Version 18
+VisualStudioVersion = 18.0.11109.219 d18.0-oob
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{66A73EAA-84CC-4337-B935-DEB6DCAF28B7}"
 	ProjectSection(SolutionItems) = preProject
@@ -24,7 +24,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "test", "test", "{FEF9802E-7
 		test\Directory.Build.props = test\Directory.Build.props
 	EndProjectSection
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Indice.Psd2.IdentityServer", "src\Indice.IdentityServer.Psd2\Indice.IdentityServer.Psd2.csproj", "{B72932D7-243E-4CA6-8E72-6552C7AA2CD9}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Indice.IdentityServer.Psd2", "src\Indice.IdentityServer.Psd2\Indice.IdentityServer.Psd2.csproj", "{B72932D7-243E-4CA6-8E72-6552C7AA2CD9}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "samples", "samples", "{E8B4E767-D199-48DA-B25C-3DBA2C71E7ED}"
 EndProject

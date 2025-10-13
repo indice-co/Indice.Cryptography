@@ -42,9 +42,9 @@ public class Psd2ClientCertificateValidator
                 errorList.Add($"Although the certificate has the QcStatements X509Certivicate extension it is not a compliant \"European Qualified Certificate\". ");
             if (qcStatements?.Psd2Type == null)
                 errorList.Add("This is not a valid QWAC or QCseal. Missing the PSD2 type QcStatement");
-            if (type.HasValue && type.Value != qcStatements.Type) { 
+            if (type.HasValue && type.Value != qcStatements!.Type) { 
                 errorList.Add($"{qcStatements.Type} is not a valid QcTypeIdentifier for the current use of this certificate. Expected option {type}");
-            } else if ((int)qcStatements.Type < 0 && 3 < (int)qcStatements.Type) {
+            } else if ((int)qcStatements!.Type < 0 && 3 < (int)qcStatements.Type) {
                 errorList.Add($"{qcStatements.Type} is not a valid QcTypeIdentifier. Valid options include {QcTypeIdentifiers.Web}, {QcTypeIdentifiers.eSeal} and {QcTypeIdentifiers.eSign}");
             }
             if (!qcStatements.Psd2Type.Roles.Any()) {
@@ -66,7 +66,7 @@ public class Psd2ClientCertificateValidator
         if (crlDistributionPoints == null || !crlDistributionPoints.Any()) {
             errorList.Add($"There is no CRL distribution points extension inside the certificate.");
         }
-        var authorizationId = qcStatements.Psd2Type.AuthorizationId;
+        var authorizationId = qcStatements!.Psd2Type.AuthorizationId;
         var organizationId = certificate.GetCABForumOrganizationIdentifier();
         var subjectOrgId = certificate.GetSubjectBuilder().GetOrganizationIdentifier();
         if (string.IsNullOrEmpty(subjectOrgId)) {
@@ -85,7 +85,7 @@ public class Psd2ClientCertificateValidator
         var chain = new X509Chain();
         chain.ChainPolicy.RevocationMode = X509RevocationMode.Online;
         chain.Build(certificate);
-        X509Certificate2 issuer = null;
+        X509Certificate2? issuer = null;
         if (chain.ChainElements.Count > 1) {
             issuer = chain.ChainElements[1].Certificate;
         }

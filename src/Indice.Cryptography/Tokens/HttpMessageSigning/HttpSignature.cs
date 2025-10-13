@@ -14,7 +14,7 @@ namespace Indice.Cryptography.Tokens.HttpMessageSigning;
 /// The Signature HTTP Header, which is typically used by automated software agents.
 /// As described in https://tools.ietf.org/html/draft-cavage-http-signatures-10
 /// </summary>
-public class HttpSignature : Dictionary<string, object>
+public class HttpSignature : Dictionary<string, object?>
 {
     /// <summary>
     /// The header name for this part.
@@ -62,11 +62,11 @@ public class HttpSignature : Dictionary<string, object>
     /// <param name="headerKeyValuesToSign">The signing string contains several headers depending on which API you are using. The order is not important as long as you define them in the same order in the signature header.</param>
     /// <param name="createdDate">Date to use on the created component. Useful if the requestDate is missing from the HTTP headers.</param>
     /// <param name="expirationDate">Expiration date.</param>
-    public HttpSignature(SigningCredentials signingCredentials, IDictionary<string, string> headerKeyValuesToSign, DateTime? createdDate = null, DateTime? expirationDate = null) : base(StringComparer.OrdinalIgnoreCase) {
+    public HttpSignature(SigningCredentials? signingCredentials, IDictionary<string, string?>? headerKeyValuesToSign, DateTime? createdDate = null, DateTime? expirationDate = null) : base(StringComparer.OrdinalIgnoreCase) {
         if (signingCredentials == null) {
             this[HttpSignatureParameterNames.Algorithm] = SecurityAlgorithms.None;
         } else {
-            if (OutboundAlgorithmMap != null && OutboundAlgorithmMap.TryGetValue(signingCredentials.Algorithm, out string outboundAlg)) {
+            if (OutboundAlgorithmMap.TryGetValue(signingCredentials.Algorithm, out string? outboundAlg)) {
                 Algorithm = outboundAlg;
             } else {
                 Algorithm = signingCredentials.Algorithm;
@@ -74,16 +74,17 @@ public class HttpSignature : Dictionary<string, object>
             if (!string.IsNullOrEmpty(signingCredentials.Key.KeyId)) {
                 KeyId = signingCredentials.Key.KeyId;
             }
+            headerKeyValuesToSign ??= new Dictionary<string, string?>();
             var message = GenerateMessage(headerKeyValuesToSign);
             var hashingAlgorithm = signingCredentials.Algorithm == OutboundAlgorithmMap[SecurityAlgorithms.RsaSha512Signature] ? HashAlgorithmName.SHA512 : HashAlgorithmName.SHA256;
             if (signingCredentials is X509SigningCredentials x509SigningCredentials) {
-                using (var key = x509SigningCredentials.Certificate.GetRSAPrivateKey()) {
+                using (var key = x509SigningCredentials.Certificate.GetRSAPrivateKey()!) {
                     this[HttpSignatureParameterNames.Signature] = Convert.ToBase64String(key.SignData(Encoding.UTF8.GetBytes(message), hashingAlgorithm, RSASignaturePadding.Pkcs1));
                 }
             } else if (signingCredentials.Key is RsaSecurityKey rsaKey) {
-                this[HttpSignatureParameterNames.Signature] = Convert.ToBase64String(HashAndSignBytes(Encoding.UTF8.GetBytes(message), rsaKey.Parameters, hashingAlgorithm));
+                this[HttpSignatureParameterNames.Signature] = Convert.ToBase64String(HashAndSignBytes(Encoding.UTF8.GetBytes(message), rsaKey.Parameters, hashingAlgorithm)!);
             } else if (signingCredentials.Key is X509SecurityKey x509Key) {
-                this[HttpSignatureParameterNames.Signature] = Convert.ToBase64String(HashAndSignBytes(Encoding.UTF8.GetBytes(message), (RSACng)x509Key.PrivateKey, hashingAlgorithm));
+                this[HttpSignatureParameterNames.Signature] = Convert.ToBase64String(HashAndSignBytes(Encoding.UTF8.GetBytes(message), (RSACng)x509Key.PrivateKey, hashingAlgorithm)!);
             }
             Headers = new HashSet<string>(headerKeyValuesToSign.Where(x => x.Value != null).Select(x => x.Key.ToLowerInvariant()));
             if (headerKeyValuesToSign.TryGetValue(HeaderFieldNames.Created, out var value)) {
@@ -99,7 +100,7 @@ public class HttpSignature : Dictionary<string, object>
         SigningCredentials = signingCredentials;
     }
 
-    private static byte[] HashAndSignBytes(byte[] DataToSign, RSACng RSAalg, HashAlgorithmName hashAlgorithm) {
+    private static byte[]? HashAndSignBytes(byte[] DataToSign, RSACng RSAalg, HashAlgorithmName hashAlgorithm) {
         // Create a new instance of RSACryptoServiceProvider using the key from RSAParameters.  
         try {
             // Hash and sign the data. Pass a new instance of SHA1CryptoServiceProvider to specify the use of SHA1 for hashing.
@@ -110,7 +111,7 @@ public class HttpSignature : Dictionary<string, object>
         }
     }
 
-    private static byte[] HashAndSignBytes(byte[] DataToSign, RSAParameters Key, HashAlgorithmName hashAlgorithm) {
+    private static byte[]? HashAndSignBytes(byte[] DataToSign, RSAParameters Key, HashAlgorithmName hashAlgorithm) {
         // Create a new instance of RSACryptoServiceProvider using the key from RSAParameters.  
         using (var RSAalg = new RSACryptoServiceProvider()) {
             try {
@@ -133,7 +134,7 @@ public class HttpSignature : Dictionary<string, object>
     /// could be an SSH key fingerprint, a URL to machine-readable key data,
     /// an LDAP DN, etc.
     /// </summary>
-    public string KeyId {
+    public string? KeyId {
         get => GetSafeComponent(HttpSignatureParameterNames.KeyId);
         set => this[HttpSignatureParameterNames.KeyId] = value;
     }
@@ -146,7 +147,7 @@ public class HttpSignature : Dictionary<string, object>
     /// corresponding to `algorithm`.  The `signature` parameter is then set
     /// to the base 64 encoding of the signature.
     /// </summary>
-    public string Signature {
+    public string? Signature {
         get => GetSafeComponent(HttpSignatureParameterNames.Signature);
         set => this[HttpSignatureParameterNames.Signature] = value;
     }
@@ -163,8 +164,8 @@ public class HttpSignature : Dictionary<string, object>
     /// signing.
     /// </summary>
     public HashSet<string> Headers {
-        get => new HashSet<string>(GetSafeComponent(HttpSignatureParameterNames.Headers).Split(' '), StringComparer.OrdinalIgnoreCase);
-        set => this[HttpSignatureParameterNames.Headers] = string.Join(" ", (value ?? new HashSet<string>()));
+        get => new HashSet<string>(GetSafeComponent(HttpSignatureParameterNames.Headers)?.Split(' ', StringSplitOptions.RemoveEmptyEntries) ?? [], StringComparer.OrdinalIgnoreCase);
+        set => this[HttpSignatureParameterNames.Headers] = string.Join(" ", (value ?? []));
     }
 
     /// <summary>
@@ -209,7 +210,7 @@ public class HttpSignature : Dictionary<string, object>
     /// potential to create security vulnerabilities and will most likely be
     /// deprecated in the future.
     /// </summary>
-    public string Algorithm {
+    public string? Algorithm {
         get => GetSafeComponent(HttpSignatureParameterNames.Algorithm);
         set => this[HttpSignatureParameterNames.Algorithm] = value;
     }
@@ -218,7 +219,7 @@ public class HttpSignature : Dictionary<string, object>
     /// Gets the <see cref="SigningCredentials"/> passed in the constructor.
     /// </summary>
     /// <remarks>This value may be null.</remarks>
-    public SigningCredentials SigningCredentials { get; }
+    public SigningCredentials? SigningCredentials { get; }
 
     /// <summary>
     /// Gets a component from the header value.
@@ -226,8 +227,8 @@ public class HttpSignature : Dictionary<string, object>
     /// </summary>
     /// <param name="componentName">The key of the component.</param>
     /// <returns>The standard claim string; or null if not found.</returns>
-    internal string GetSafeComponent(string componentName) {
-        if (TryGetValue(componentName, out object value)) {
+    internal string? GetSafeComponent(string componentName) {
+        if (TryGetValue(componentName, out object? value)) {
             return SerializeComponent(value);
         }
         return null;
@@ -239,13 +240,13 @@ public class HttpSignature : Dictionary<string, object>
     /// <param name="componentName">The key of the component.</param>
     /// <returns>The standard component ; or null if not found.</returns>
     internal DateTime? GetSafeDate(string componentName) {
-        if (TryGetValue(componentName, out object value)) {
+        if (TryGetValue(componentName, out object? value)) {
             return GetDate(value);
         }
         return null;
     }
 
-    internal static DateTime? GetDate(object value) {
+    internal static DateTime? GetDate(object? value) {
         if (value is string @string) {
             if (long.TryParse(@string, out var unixTime)) {
                 return DateTimeOffset.FromUnixTimeSeconds(unixTime).UtcDateTime;
@@ -261,7 +262,7 @@ public class HttpSignature : Dictionary<string, object>
         return null;
     }
 
-    internal static string SerializeComponent(object value) {
+    internal static string? SerializeComponent(object? value) {
         if (value == null) {
             return null;
         }
@@ -315,8 +316,8 @@ public class HttpSignature : Dictionary<string, object>
     /// <param name="httpRequestTarget"></param>
     /// <param name="extraHeaderKeyValues">extra parameters to include</param>
     /// <returns></returns>
-    public bool Validate(SecurityKey key, string digest, string requestId, DateTime requestDate, HttpRequestTarget httpRequestTarget, IDictionary<string, string> extraHeaderKeyValues = null) {
-        var headers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) {
+    public bool Validate(SecurityKey key, string digest, string requestId, DateTime requestDate, HttpRequestTarget httpRequestTarget, IDictionary<string, string?> extraHeaderKeyValues? = null) {
+        var headers = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase) {
             ["X-Request-Id"] = requestId,
             [HeaderFieldNames.Created] = requestDate.ToString("r"),
             [HttpDigest.HTTPHeaderName] = digest,
@@ -358,13 +359,13 @@ public class HttpSignature : Dictionary<string, object>
     /// </summary>
     /// <param name="key">The public key</param>
     /// <param name="headers"></param>
-    public bool Validate(SecurityKey key, IDictionary<string, string> headers) {
+    public bool Validate(SecurityKey key, IDictionary<string, string?> headers) {
         var cryptoProviderFactory = key.CryptoProviderFactory;
-        var signatureProvider = cryptoProviderFactory.CreateForVerifying(key, InboundAlgorithmMap[Algorithm]);
+        var signatureProvider = cryptoProviderFactory.CreateForVerifying(key, InboundAlgorithmMap[Algorithm!]);
         try {
-            var headersToValidate = Headers.Select(x => new KeyValuePair<string, string>(x, headers[x]));
+            var headersToValidate = Headers.Select(x => new KeyValuePair<string, string?>(x, headers[x]));
             var message = GenerateMessage(headersToValidate);
-            return signatureProvider.Verify(Encoding.UTF8.GetBytes(message), Convert.FromBase64String(Signature));
+            return signatureProvider.Verify(Encoding.UTF8.GetBytes(message), Convert.FromBase64String(Signature!));
         } catch (KeyNotFoundException) {
             // A header is missing from the list. Although defined in the signature header names it is not present in the header values.
             return false;
@@ -373,6 +374,6 @@ public class HttpSignature : Dictionary<string, object>
         }
     }
 
-    private static string GenerateMessage(IEnumerable<KeyValuePair<string, string>> headerKeyValues) =>
+    private static string GenerateMessage(IEnumerable<KeyValuePair<string, string?>> headerKeyValues) =>
         string.Join("\n", headerKeyValues.Where(x => x.Value != null).Select(x => $"{x.Key.ToLowerInvariant()}: {SerializeComponent(x.Value)}"));
 }

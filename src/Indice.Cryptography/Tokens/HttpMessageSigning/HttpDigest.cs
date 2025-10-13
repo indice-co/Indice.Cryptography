@@ -20,11 +20,11 @@ public class HttpDigest
     /// provides a mapping for the 'algorithm' value so that values are within the Http Signature namespace.
     /// </summary>
     private readonly IDictionary<string, string> OutboundAlgorithmMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) {
-        [HashAlgorithmName.MD5.Name] = "md5",
-        [HashAlgorithmName.SHA1.Name] = "sha-1",
-        [HashAlgorithmName.SHA256.Name] = "sha-256",
-        [HashAlgorithmName.SHA384.Name] = "sha-384",
-        [HashAlgorithmName.SHA512.Name] = "sha-512",
+        [HashAlgorithmName.MD5.Name!] = "md5",
+        [HashAlgorithmName.SHA1.Name!] = "sha-1",
+        [HashAlgorithmName.SHA256.Name!] = "sha-256",
+        [HashAlgorithmName.SHA384.Name!] = "sha-384",
+        [HashAlgorithmName.SHA512.Name!] = "sha-512",
         [SecurityAlgorithms.RsaSha256] = "sha-256",
         [SecurityAlgorithms.RsaSha256Signature] = "sha-256",
         [SecurityAlgorithms.RsaSha384] = "sha-384",
@@ -55,7 +55,7 @@ public class HttpDigest
     /// <param name="algorithm"></param>
     /// <param name="requestBody"></param>
     public HttpDigest(string algorithm, byte[] requestBody) {
-        if (OutboundAlgorithmMap.TryGetValue(algorithm, out string outboundAlg))
+        if (OutboundAlgorithmMap.TryGetValue(algorithm, out string? outboundAlg))
             Algorithm = outboundAlg;
         else
             Algorithm = algorithm;
@@ -97,7 +97,7 @@ public class HttpDigest
 
     private static string HashToBase64(HashAlgorithmName algorithm, byte[] requestBody) {
         var hash = default(byte[]);
-        using (var hashAlgorithm = (HashAlgorithm)CryptoConfig.CreateFromName(algorithm.Name)) {
+        using (var hashAlgorithm = (HashAlgorithm)CryptoConfig.CreateFromName(algorithm.Name!)!) {
             hash = hashAlgorithm.ComputeHash(requestBody);
         }
         return Convert.ToBase64String(hash);

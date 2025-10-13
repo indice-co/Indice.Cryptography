@@ -33,7 +33,7 @@ public class Psd2IssuerSigningKeyValidator {
         } else {
             return true;
         }
-        return ValidateInternal(x509key, jwtToken, validationParameters);
+        return ValidateInternal(x509key!, jwtToken, validationParameters);
     }
 
     /// <summary>

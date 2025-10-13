@@ -100,7 +100,7 @@ public class CertificateManager
         StoreLocation location,
         bool isValid,
         bool requireExportable = true,
-        DiagnosticInformation diagnostics = null) {
+        DiagnosticInformation? diagnostics = null) {
         diagnostics?.Debug($"Listing '{purpose}' certificates on '{location}\\{storeName}'.");
         var certificates = new List<X509Certificate2>();
         try {
@@ -161,7 +161,7 @@ public class CertificateManager
 
         bool HasOid(X509Certificate2 certificate, string oid) =>
             certificate.Extensions.OfType<X509Extension>()
-                .Any(e => string.Equals(oid, e.Oid.Value, StringComparison.Ordinal));
+                .Any(e => string.Equals(oid, e.Oid!.Value, StringComparison.Ordinal));
 #if !XPLAT
         bool IsExportable(X509Certificate2 c) =>
             c.GetRSAPrivateKey() is RSACryptoServiceProvider rsaPrivateKey &&
@@ -195,7 +195,7 @@ public class CertificateManager
     /// <param name="authorityDomainName">The common name for the issuing certification authority</param>
     /// <param name="diagnostics"></param>
     /// <returns></returns>
-    public X509Certificate2 CreateRootCACertificate(string authorityDomainName, DiagnosticInformation diagnostics = null) {
+    public X509Certificate2 CreateRootCACertificate(string authorityDomainName, DiagnosticInformation? diagnostics = null) {
         var notBefore = DateTimeOffset.UtcNow.AddDays(-2);
         var notAfter = DateTimeOffset.UtcNow.AddYears(5);
         var subject = new SubjectBuilder().AddLocation("GR", "Attiki", "Athens")
@@ -267,15 +267,15 @@ public class CertificateManager
             pdsLocations: new List<PdsLocation> { new PdsLocation { Language = "EN", Url = "https://www.etsi.org/deliver/etsi_en/319400_319499/31941205/02.02.03_20/en_31941205v020203a.pdf" } },
             type: request.QcType,
             critical: false);
-        var authorityInformation = new AuthorityInformationAccessExtension(new[] {
+        var authorityInformation = new AuthorityInformationAccessExtension([
             new AccessDescription {
                 AccessMethod = AccessDescription.AccessMethodType.CertificationAuthorityIssuer,
                 AccessLocation = $"http://{issuerDomain}/.certificates/ca.cer"
             }
-        }, critical: false);
-        var crlDistributionPoints = new CRLDistributionPointsExtension(new[] {
+        ], critical: false);
+        var crlDistributionPoints = new CRLDistributionPointsExtension([
             new CRLDistributionPoint {  FullName = new [] { $"http://{issuerDomain}/.certificates/revoked.crl" } },
-        }, critical: false);
+        ], critical: false);
         var sanBuilder = new SubjectAlternativeNameBuilder();
         sanBuilder.AddDnsName(request.CommonName);
         var organizationIdentifier = new CABForumOrganizationIdentifierExtension(
@@ -304,7 +304,7 @@ public class CertificateManager
         return certificate.CopyWithPrivateKey(privateKey);
     }
 
-    internal X509Certificate2 CreateAspNetCoreHttpsDevelopmentCertificate(DateTimeOffset notBefore, DateTimeOffset notAfter, string subjectOverride, DiagnosticInformation diagnostics = null) {
+    internal X509Certificate2 CreateAspNetCoreHttpsDevelopmentCertificate(DateTimeOffset notBefore, DateTimeOffset notAfter, string? subjectOverride, DiagnosticInformation? diagnostics = null) {
         var subject = new X500DistinguishedName(subjectOverride ?? LocalhostHttpsDistinguishedName);
         var extensions = new List<X509Extension>();
         var sanBuilder = new SubjectAlternativeNameBuilder();
@@ -402,7 +402,7 @@ public class CertificateManager
         }
     }
 
-    internal X509Certificate2 SaveCertificateInStore(X509Certificate2 certificate, StoreName name, StoreLocation location, DiagnosticInformation diagnostics = null) {
+    internal X509Certificate2 SaveCertificateInStore(X509Certificate2 certificate, StoreName name, StoreLocation location, DiagnosticInformation? diagnostics = null) {
         diagnostics?.Debug("Saving the certificate into the certificate store.");
         var imported = certificate;
         if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX)) {
@@ -434,7 +434,7 @@ public class CertificateManager
     /// <param name="includePrivateKey"></param>
     /// <param name="password"></param>
     /// <param name="diagnostics"></param>
-    public void ExportCertificate(X509Certificate2 certificate, string path, bool includePrivateKey, string password, DiagnosticInformation diagnostics = null) {
+    public void ExportCertificate(X509Certificate2 certificate, string path, bool includePrivateKey, string? password, DiagnosticInformation? diagnostics = null) {
         diagnostics?.Debug(
             $"Exporting certificate to '{path}'",
             includePrivateKey ? "The certificate will contain the private key" : "The certificate will not contain the private key");
@@ -443,7 +443,7 @@ public class CertificateManager
         }
 
         var targetDirectoryPath = Path.GetDirectoryName(path);
-        if (targetDirectoryPath != "") {
+        if (!string.IsNullOrWhiteSpace(targetDirectoryPath)) {
             diagnostics?.Debug($"Ensuring that the directory for the target exported certificate path exists '{targetDirectoryPath}'");
             Directory.CreateDirectory(targetDirectoryPath);
         }
@@ -483,7 +483,7 @@ public class CertificateManager
     /// </summary>
     /// <param name="certificate"></param>
     /// <param name="diagnostics"></param>
-    public void TrustCertificate(X509Certificate2 certificate, DiagnosticInformation diagnostics = null) {
+    public void TrustCertificate(X509Certificate2 certificate, DiagnosticInformation? diagnostics = null) {
         // Strip certificate of the private key if any.
         var publicCertificate = new X509Certificate2(certificate.Export(X509ContentType.Cert));
 
@@ -498,7 +498,7 @@ public class CertificateManager
         }
     }
 
-    private void TrustCertificateOnMac(X509Certificate2 publicCertificate, DiagnosticInformation diagnostics) {
+    private void TrustCertificateOnMac(X509Certificate2 publicCertificate, DiagnosticInformation? diagnostics) {
         var tmpFile = Path.GetTempFileName();
         try {
             ExportCertificate(publicCertificate, tmpFile, includePrivateKey: false, password: null);
@@ -520,7 +520,7 @@ public class CertificateManager
         }
     }
 
-    private static void TrustCertificateOnWindows(X509Certificate2 certificate, X509Certificate2 publicCertificate, DiagnosticInformation diagnostics = null) {
+    private static void TrustCertificateOnWindows(X509Certificate2 certificate, X509Certificate2 publicCertificate, DiagnosticInformation? diagnostics = null) {
         publicCertificate.FriendlyName = certificate.FriendlyName;
 
         using (var store = new X509Store(StoreName.Root, StoreLocation.CurrentUser)) {
@@ -563,7 +563,7 @@ public class CertificateManager
                 string.Format(MacOSFindCertificateCommandLineArgumentsFormat, subject)) {
                 RedirectStandardOutput = true
             })) {
-                var output = checkTrustProcess.StandardOutput.ReadToEnd();
+                var output = checkTrustProcess!.StandardOutput.ReadToEnd();
                 checkTrustProcess.WaitForExit();
                 var matches = Regex.Matches(output, MacOSFindCertificateOutputRegex, RegexOptions.Multiline, MaxRegexTimeout);
                 var hashes = matches.OfType<Match>().Select(m => m.Groups[1].Value).ToList();
@@ -613,7 +613,7 @@ public class CertificateManager
         return diagnostics;
     }
 
-    internal void RemoveAllCertificates(CertificatePurpose purpose, StoreName storeName, StoreLocation storeLocation, string subject = null) {
+    internal void RemoveAllCertificates(CertificatePurpose purpose, StoreName storeName, StoreLocation storeLocation, string? subject = null) {
         var certificates = RuntimeInformation.IsOSPlatform(OSPlatform.OSX) ?
             ListCertificates(purpose, StoreName.My, StoreLocation.CurrentUser, isValid: false) :
             ListCertificates(purpose, storeName, storeLocation, isValid: false);
@@ -628,7 +628,7 @@ public class CertificateManager
         DisposeCertificates(certificates);
     }
 
-    private void RemoveCertificate(X509Certificate2 certificate, RemoveLocations locations, DiagnosticInformation diagnostics = null) {
+    private void RemoveCertificate(X509Certificate2 certificate, RemoveLocations locations, DiagnosticInformation? diagnostics = null) {
         switch (locations) {
             case RemoveLocations.Undefined:
                 throw new InvalidOperationException($"'{nameof(RemoveLocations.Undefined)}' is not a valid location.");
@@ -649,7 +649,7 @@ public class CertificateManager
         }
     }
 
-    private static void RemoveCertificateFromUserStore(X509Certificate2 certificate, DiagnosticInformation diagnostics) {
+    private static void RemoveCertificateFromUserStore(X509Certificate2 certificate, DiagnosticInformation? diagnostics) {
         diagnostics?.Debug($"Trying to remove certificate with thumbprint '{certificate.Thumbprint}' from certificate store '{StoreLocation.CurrentUser}\\{StoreName.My}'.");
         using (var store = new X509Store(StoreName.My, StoreLocation.CurrentUser)) {
             store.Open(OpenFlags.ReadWrite);
@@ -662,7 +662,7 @@ public class CertificateManager
         }
     }
 
-    private void RemoveCertificateFromTrustedRoots(X509Certificate2 certificate, DiagnosticInformation diagnostics) {
+    private void RemoveCertificateFromTrustedRoots(X509Certificate2 certificate, DiagnosticInformation? diagnostics) {
         diagnostics?.Debug($"Trying to remove certificate with thumbprint '{certificate.Thumbprint}' from certificate store '{StoreLocation.CurrentUser}\\{StoreName.Root}'.");
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) {
             using (var store = new X509Store(StoreName.Root, StoreLocation.CurrentUser)) {
@@ -709,7 +709,7 @@ public class CertificateManager
                     certificatePath
                 ));
             using (var process = Process.Start(processInfo)) {
-                process.WaitForExit();
+                process!.WaitForExit();
             }
         } finally {
             try {
@@ -735,7 +735,7 @@ public class CertificateManager
         };
 
         using (var process = Process.Start(processInfo)) {
-            var output = process.StandardOutput.ReadToEnd() + process.StandardError.ReadToEnd();
+            var output = process!.StandardOutput.ReadToEnd() + process.StandardError.ReadToEnd();
             process.WaitForExit();
 
             if (process.ExitCode != 0) {
@@ -749,10 +749,10 @@ public class CertificateManager
     internal EnsureCertificateResult EnsureAspNetCoreHttpsDevelopmentCertificate(
         DateTimeOffset notBefore,
         DateTimeOffset notAfter,
-        string path = null,
+        string? path = null,
         bool trust = false,
         bool includePrivateKey = false,
-        string password = null,
+        string? password = null,
         string subject = LocalhostHttpsDistinguishedName) {
         return EnsureValidCertificateExists(notBefore, notAfter, CertificatePurpose.HTTPS, path, trust, includePrivateKey, password, subject);
     }
@@ -761,11 +761,11 @@ public class CertificateManager
         DateTimeOffset notBefore,
         DateTimeOffset notAfter,
         CertificatePurpose purpose,
-        string path = null,
+        string? path = null,
         bool trust = false,
         bool includePrivateKey = false,
-        string password = null,
-        string subjectOverride = null) {
+        string? password = null,
+        string? subjectOverride = null) {
         if (purpose == CertificatePurpose.All) {
             throw new ArgumentException("The certificate must have a specific purpose.");
         }
@@ -777,9 +777,9 @@ public class CertificateManager
 
         var result = EnsureCertificateResult.Succeeded;
 
-        X509Certificate2 certificate = null;
+        X509Certificate2 certificate = null!;
         if (certificates.Count() > 0) {
-            certificate = certificates.FirstOrDefault();
+            certificate = certificates.First();
             result = EnsureCertificateResult.ValidCertificatePresent;
         } else {
             try {
@@ -828,10 +828,10 @@ public class CertificateManager
     internal DetailedEnsureCertificateResult EnsureAspNetCoreHttpsDevelopmentCertificate2(
         DateTimeOffset notBefore,
         DateTimeOffset notAfter,
-        string path = null,
+        string? path = null,
         bool trust = false,
         bool includePrivateKey = false,
-        string password = null,
+        string? password = null,
         string subject = LocalhostHttpsDistinguishedName) {
         return EnsureValidCertificateExists2(notBefore, notAfter, CertificatePurpose.HTTPS, path, trust, includePrivateKey, password, subject);
     }
@@ -840,10 +840,10 @@ public class CertificateManager
         DateTimeOffset notBefore,
         DateTimeOffset notAfter,
         CertificatePurpose purpose,
-        string path,
+        string? path,
         bool trust,
         bool includePrivateKey,
-        string password,
+        string? password,
         string subject) {
         if (purpose == CertificatePurpose.All) {
             throw new ArgumentException("The certificate must have a specific purpose.");
@@ -870,7 +870,7 @@ public class CertificateManager
 
         result.ResultCode = EnsureCertificateResult.Succeeded;
 
-        X509Certificate2 certificate = null;
+        X509Certificate2 certificate = null!;
         if (certificates.Count() > 0) {
             result.Diagnostics.Debug("Found valid certificates present on the machine.");
             result.Diagnostics.Debug(result.Diagnostics.DescribeCertificates(certificates));
@@ -1002,9 +1002,10 @@ public class CertificateManager
         /// <param name="certificates"></param>
         /// <returns></returns>
         public string[] DescribeCertificates(IEnumerable<X509Certificate2> certificates) {
-            var result = new List<string>();
-            result.Add($"'{certificates.Count()}' found matching the criteria.");
-            result.Add($"SUBJECT - THUMBPRINT - NOT BEFORE - EXPIRES - HAS PRIVATE KEY");
+            var result = new List<string> {
+                $"'{certificates.Count()}' found matching the criteria.",
+                $"SUBJECT - THUMBPRINT - NOT BEFORE - EXPIRES - HAS PRIVATE KEY"
+            };
             foreach (var certificate in certificates) {
                 result.Add(DescribeCertificate(certificate));
             }
@@ -1020,7 +1021,7 @@ public class CertificateManager
         /// </summary>
         /// <param name="preamble"></param>
         /// <param name="e"></param>
-        public void Error(string preamble, Exception e) {
+        public void Error(string preamble, Exception? e) {
             Messages.Add(preamble);
             if (Exceptions.Count > 0 && Exceptions[Exceptions.Count - 1] == e) {
                 return;

@@ -55,7 +55,7 @@ public class HttpSignatureDelegatingHandler : DelegatingHandler
     public HttpSignatureDelegatingHandler(
         SigningCredentials credential,
         IEnumerable<string> headerNames,
-        HttpMessageHandler innerHandler
+        HttpMessageHandler? innerHandler
     ) : base(innerHandler ?? new HttpClientHandler()) {
         Credential = credential;
         HeaderNames = headerNames.ToArray();
@@ -89,7 +89,7 @@ public class HttpSignatureDelegatingHandler : DelegatingHandler
             return;
         }
         // Validate HTTP methods.
-        foreach (var method in httpMethods) {
+        foreach (var method in httpMethods!) {
             var isValidHttpMethod = method.Equals("GET", StringComparison.OrdinalIgnoreCase)
                 || method.Equals("POST", StringComparison.OrdinalIgnoreCase)
                 || method.Equals("PUT", StringComparison.OrdinalIgnoreCase)
@@ -121,7 +121,7 @@ public class HttpSignatureDelegatingHandler : DelegatingHandler
         if (IgnoreResponseValidation) {
             return;
         }
-        if (StringExtensions.IsIgnoredPath(IgnoredPaths, request.RequestUri.AbsolutePath, request.Method.Method)) {
+        if (StringExtensions.IsIgnoredPath(IgnoredPaths, request.RequestUri!.AbsolutePath, request.Method.Method)) {
             return;
         }
         if (!response.Headers.TryGetValues(HttpSignature.HTTPHeaderName, out var signatureValues) || signatureValues.Count() == 0) {
@@ -159,6 +159,7 @@ public class HttpSignatureDelegatingHandler : DelegatingHandler
             }
         }
         response.Headers.TryGetValues(ResponseCreatedHeaderName, out var createdFieldValue);
+        createdFieldValue ??= [];
         var signatureIsValid = httpSignature.Validate(validationKey, request.RequestUri, request.Method.Method, createdFieldValue.First(), response.Headers);
         if (!signatureIsValid) {
             var error = $"Response signature validation failed.";
@@ -167,13 +168,13 @@ public class HttpSignatureDelegatingHandler : DelegatingHandler
     }
 
     private async Task SignRequest(HttpRequestMessage request) {
-        if (StringExtensions.IsIgnoredPath(IgnoredPaths, request.RequestUri.AbsolutePath, request.Method.Method)) {
+        if (StringExtensions.IsIgnoredPath(IgnoredPaths, request.RequestUri!.AbsolutePath, request.Method.Method)) {
             return;
         }
-        var content = request.Content != null ? (await request.Content.ReadAsByteArrayAsync()) : new byte[0];
+        var content = request.Content != null ? (await request.Content.ReadAsByteArrayAsync()) : [];
         var validationKey = Credential.Key as X509SecurityKey;
         var pathAndQuery = Uri.UnescapeDataString(request.RequestUri.AbsolutePath) + request.RequestUri.Query;
-        var headersToSign = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var headersToSign = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
         foreach (var name in HeaderNames) {
             if (HttpRequestTarget.HeaderName.Equals(name, StringComparison.OrdinalIgnoreCase)) {
                 headersToSign.Add(HttpRequestTarget.HeaderName, new HttpRequestTarget(request.Method.Method, pathAndQuery).ToString());
@@ -205,6 +206,6 @@ public class HttpSignatureDelegatingHandler : DelegatingHandler
         var signature = new HttpSignature(Credential, headersToSign, DateTime.UtcNow, null);
         request.Headers.Add(HttpSignature.HTTPHeaderName, signature.ToString());
         Debug.WriteLine($"HttpSignature: {HttpSignature.HTTPHeaderName} Header: {signature}");
-        request.Headers.Add(RequestSignatureCertificateHeaderName, Convert.ToBase64String(validationKey.Certificate.Export(X509ContentType.Cert)));
+        request.Headers.Add(RequestSignatureCertificateHeaderName, Convert.ToBase64String(validationKey!.Certificate.Export(X509ContentType.Cert)));
     }
 }

@@ -57,7 +57,7 @@ public class AuthorityInformationAccessExtension : X509Extension
     }
 
     private bool _decoded = false;
-    private AccessDescription[] _AccessDescriptions;
+    private AccessDescription[] _AccessDescriptions = null!;
 
     /// <summary>
     /// The deserialized contents
@@ -84,7 +84,7 @@ public class AuthorityInformationAccessExtension : X509Extension
         using (var decoder = new DefaultDerAsnDecoder()) {
             decoder.RegisterType(ContextSpecificString.Id, (dcdr, identifier, data) => new ContextSpecificString(dcdr, identifier, data));
             var sequence = decoder.Decode(RawData) as DerAsnSequence;
-            _AccessDescriptions = new AccessDescriptionList(sequence.Value).Extract();
+            _AccessDescriptions = new AccessDescriptionList(sequence!.Value).Extract();
             _decoded = true;
         }
         
@@ -132,7 +132,7 @@ public class AccessDescriptionList : DerAsnSequence
         var list = new List<DerAsnSequence>();
         foreach (var description in descriptions) {
             var id = new DerAsnObjectIdentifier(DerAsnIdentifiers.Primitive.ObjectIdentifier, Oid2Array(Oid_AccessDescription + "." + (int)description.AccessMethod));
-            var alternativeName = new ContextSpecificString(description.AccessLocation);
+            var alternativeName = new ContextSpecificString(description.AccessLocation!);
             var accessDescription = new DerAsnSequence(new DerAsnType[] { id, alternativeName });
             list.Add(accessDescription);
         }
@@ -159,12 +159,12 @@ public class AccessDescriptionList : DerAsnSequence
                 continue;
             }
             var accessDescription = item as DerAsnSequence;
-            var accessMethod = accessDescription.Value[0] as DerAsnObjectIdentifier;
+            var accessMethod = accessDescription!.Value[0] as DerAsnObjectIdentifier;
             var accessLocation = accessDescription.Value[1] as ContextSpecificString;
 
             descriptions.Add(new AccessDescription {
-                AccessMethod = (AccessDescription.AccessMethodType)(int)accessMethod.Value[accessMethod.Value.Length - 1],
-                AccessLocation = accessLocation.Value
+                AccessMethod = (AccessDescription.AccessMethodType)(int)accessMethod!.Value[accessMethod.Value.Length - 1],
+                AccessLocation = accessLocation!.Value
             });
         }
         return descriptions.ToArray();
@@ -184,7 +184,7 @@ public class AccessDescription
     /// <summary>
     /// Url. This is an array in case there are both ldap and http protocol based urls.
     /// </summary>
-    public string AccessLocation { get; set; }
+    public string? AccessLocation { get; set; }
 
     /// <summary>
     /// Access Method enum.
@@ -203,7 +203,7 @@ public class AccessDescription
     }
 
     /// <inheritdoc/>
-    public override string ToString() => !string.IsNullOrEmpty(AccessLocation) ?
+    public override string? ToString() => !string.IsNullOrEmpty(AccessLocation) ?
                                             $"{AccessLocation} ({(AccessMethod == AccessMethodType.CertificationAuthorityIssuer ? "cer" : "OSCP")})" :
                                         base.ToString();
 }

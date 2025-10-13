@@ -12,55 +12,55 @@ public class Psd2CertificateRequest
     /// The city
     /// </summary>
     [Required]
-    public string City { get; set; }
+    public string City { get; set; } = null!;
 
     /// <summary>
     /// The state name
     /// </summary>
     [Required]
-    public string State { get; set; }
+    public string State { get; set; } = null!;
 
     /// <summary>
     /// The coutntry code two letter ISO (ie GR, FR, ES, DE ...)
     /// </summary>
     [Required]
-    public string CountryCode { get; set; }
+    public string CountryCode { get; set; } = null!;
 
     /// <summary>
     /// The legal name of the organization the the cerificate is issued to.
     /// </summary>
     [Required]
-    public string Organization { get; set; }
+    public string Organization { get; set; } = null!;
 
     /// <summary>
     /// The organization unit that the cerificate is issued to.
     /// </summary>
     [Required]
-    public string OrganizationUnit { get; set; }
+    public string OrganizationUnit { get; set; } = null!;
 
     /// <summary>
     /// The domain name of the organizition where this certificate will be used.
     /// </summary>
     [Required]
-    public string CommonName { get; set; }
+    public string CommonName { get; set; } = null!;
 
     /// <summary>
     /// The National Competent Authority Code (ie BOG is the code for "Bank of Greece")
     /// </summary>
     [Required]
-    public string AuthorityId { get; set; }
+    public string AuthorityId { get; set; } = null!;
 
     /// <summary>
     /// The National Competent Authority name (ie "Bank of Greece")
     /// </summary>
     [Required]
-    public string AuthorityName { get; set; }
+    public string AuthorityName { get; set; } = null!;
 
     /// <summary>
     /// The Authorization number for the PSP
     /// </summary>
     [Required]
-    public string AuthorizationNumber { get; set; }
+    public string AuthorizationNumber { get; set; } = null!;
 
     /// <summary>
     /// The validity period from today in number of days

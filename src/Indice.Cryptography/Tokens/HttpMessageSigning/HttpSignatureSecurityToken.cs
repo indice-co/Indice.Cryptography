@@ -37,13 +37,13 @@ public class HttpSignatureSecurityToken : SecurityToken
         byte[] requestBody,
         string requestId,
         DateTime? requestDate = null,
-        HttpRequestTarget requestTarget = null,
+        HttpRequestTarget? requestTarget = null,
         DateTime? createdDate = null,
         DateTime? expirationDate = null
      ) : this(
          signingCredentials,
          requestBody,
-         new Dictionary<string, string> {
+         new Dictionary<string, string?> {
              ["X-Request-Id"] = requestId,
              [HeaderFieldNames.Created] = requestDate?.ToString("r"),
              [HttpRequestTarget.HeaderName] = requestTarget?.ToString()
@@ -60,7 +60,7 @@ public class HttpSignatureSecurityToken : SecurityToken
     /// <param name="includedHeaders"></param>
     /// <param name="createdDate"></param>
     /// <param name="expirationDate"></param>
-    public HttpSignatureSecurityToken(SigningCredentials signingCredentials, byte[] requestBody, IDictionary<string, string> includedHeaders, DateTime? createdDate = null, DateTime? expirationDate = null) {
+    public HttpSignatureSecurityToken(SigningCredentials signingCredentials, byte[] requestBody, IDictionary<string, string?> includedHeaders, DateTime? createdDate = null, DateTime? expirationDate = null) {
         Digest = new HttpDigest(signingCredentials.Algorithm, requestBody);
         includedHeaders.Add(HttpDigest.HTTPHeaderName, Digest.ToString());
         Signature = new HttpSignature(signingCredentials, includedHeaders, createdDate, expirationDate);
@@ -70,19 +70,19 @@ public class HttpSignatureSecurityToken : SecurityToken
     /// <summary>
     /// The signature part is.
     /// </summary>
-    public override string Id => RequestId;
+    public override string? Id => RequestId;
     /// <summary>
     /// The issuer.
     /// </summary>
-    public override string Issuer => (SigningCredentials as X509SigningCredentials)?.Certificate.Issuer;
+    public override string? Issuer => (SigningCredentials as X509SigningCredentials)?.Certificate.Issuer;
     /// <summary>
     /// Gets the <see cref="SecurityKey"/>s for this instance.
     /// </summary>
-    public override SecurityKey SecurityKey => null;
+    public override SecurityKey? SecurityKey => null;
     /// <summary>
     /// Gets or sets the <see cref="SigningKey"/> that signed this instance.
     /// </summary>
-    public override SecurityKey SigningKey { get; set; }
+    public override SecurityKey? SigningKey { get; set; }
 
     /// <summary>
     /// Gets the 'value' of the 'created' parameter
@@ -121,17 +121,17 @@ public class HttpSignatureSecurityToken : SecurityToken
     /// <summary>
     /// Gets the <see cref="SigningCredentials"/> to use when writing this token.
     /// </summary>
-    public SigningCredentials SigningCredentials => Signature?.SigningCredentials;
+    public SigningCredentials? SigningCredentials => Signature?.SigningCredentials;
     /// <summary>
     /// The 'X-Request-Id' Header.
     /// </summary>
-    public string RequestId { get; }
+    public string? RequestId { get; }
     /// <summary>
     /// The raw digest when reading the token.
     /// </summary>
-    public string RawDigest { get; }
+    public string? RawDigest { get; }
     /// <summary>
     /// The raw signature when reading the token.
     /// </summary>
-    public string RawSignature { get; }
+    public string? RawSignature { get; }
 }
