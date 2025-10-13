@@ -67,12 +67,12 @@ public class AuthorityKeyIdentifierExtension : X509Extension
     }
 
     private bool _decoded = false;
-    private string _KeyId;
+    private string? _KeyId;
 
     /// <summary>
     /// The deserialized contents
     /// </summary>
-    public string AuthorityKeyIdentifier {
+    public string? AuthorityKeyIdentifier {
         get {
             if (!_decoded) {
                 DecodeExtension();

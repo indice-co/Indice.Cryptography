@@ -17,7 +17,7 @@ public static class HttpSignatureConfiguration
     /// <param name="services"></param>
     /// <param name="setupAction"></param>
     /// <returns></returns>
-    public static IHttpSignatureBuilder AddHttpSignatures(this IServiceCollection services, Action<HttpSignatureOptions> setupAction = null) {
+    public static IHttpSignatureBuilder AddHttpSignatures(this IServiceCollection services, Action<HttpSignatureOptions>? setupAction = null) {
         var builder = new HttpSignatureBuilder {
             Services = services
         };
@@ -86,6 +86,6 @@ public static class HttpSignatureConfiguration
 
 internal class HttpSignatureBuilder : IHttpSignatureBuilder
 {
-    public IServiceCollection Services { get; set; }
-    public HttpSignatureOptions Options { get; set; }
+    public IServiceCollection Services { get; set; } = null!;
+    public HttpSignatureOptions Options { get; set; } = null!;
 }

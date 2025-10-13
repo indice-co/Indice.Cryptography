@@ -93,12 +93,12 @@ public class CertificatePoliciesExtension : X509Extension
     }
 
     private bool _decoded = false;
-    private PolicyInformation[] _Policies;
+    private PolicyInformation[]? _Policies;
 
     /// <summary>
     /// The deserialized contents
     /// </summary>
-    public PolicyInformation[] Policies {
+    public PolicyInformation[]? Policies {
         get {
             if (!_decoded) {
                 DecodeExtension();
@@ -118,7 +118,7 @@ public class CertificatePoliciesExtension : X509Extension
 
     private void DecodeExtension() {
         var sequence = DerConvert.Decode(RawData) as DerAsnSequence;
-        _Policies = new CertificatePolicies(sequence.Value).Extract();
+        _Policies = new CertificatePolicies(sequence!.Value).Extract();
         _decoded = true;
     }
 }
@@ -193,7 +193,7 @@ public class CertificatePolicies : DerAsnSequence
                 continue;
             }
             var policySequesce = item as DerAsnSequence;
-            var policyIdentifier = ((DerAsnObjectIdentifier)(policySequesce.Value[0])).Value.ToOidString();
+            var policyIdentifier = ((DerAsnObjectIdentifier)(policySequesce!.Value[0])).Value.ToOidString();
             var policy = new PolicyInformation {
                 PolicyIdentifier = policyIdentifier,
             };
@@ -267,12 +267,12 @@ public class PolicyInformation {
     /// <summary>
     /// The Oid of the policy
     /// </summary>
-    public string PolicyIdentifier { get; set; }
+    public string? PolicyIdentifier { get; set; }
 
     /// <summary>
     /// Policy name
     /// </summary>
-    public string Name {
+    public string? Name {
         get {
             switch (PolicyIdentifier) {
                 case Oid_QCP_n: return "QCP-n";
@@ -294,12 +294,12 @@ public class PolicyInformation {
     public List<PolicyQualifierInfo> PolicyQualifiers { get; } = new List<PolicyQualifierInfo>();
 
     /// <inheritdoc/>
-    public override string ToString() => Name ?? base.ToString();
+    public override string? ToString() => Name ?? base.ToString();
 
     /// <summary>
     /// Checks whether the policy identifies the certificate as EU qualified certificate.
     /// </summary>
-    public bool IsEUQualifiedCertificate => PolicyIdentifier.StartsWith(Oid_QCP);
+    public bool IsEUQualifiedCertificate => PolicyIdentifier!.StartsWith(Oid_QCP);
 }
 
 /// <summary>
@@ -328,11 +328,11 @@ public class PolicyQualifierInfo {
     /// <summary>
     /// Qualifier CPS_Uri. Only polulated when <see cref="PolicyQualifierType.CPS"/>
     /// </summary>
-    public string CPS_Uri { get; set; }
+    public string CPS_Uri { get; set; } = null!;
     /// <summary>
     /// User Notice. Only polulated when <see cref="PolicyQualifierType.UserNotice"/>
     /// </summary>
-    public UserNotice UserNotice { get; set; }
+    public UserNotice UserNotice { get; set; } = null!;
 
     /// <inheritdoc/>
     public override string ToString() => $"{Type} {(Type == PolicyQualifierType.CPS ? CPS_Uri : UserNotice.ToString())}";
@@ -346,12 +346,12 @@ public class UserNotice
     /// <summary>
     /// Explicit Text (optional)
     /// </summary>
-    public string ExplicitText { get; set; }
+    public string? ExplicitText { get; set; }
 
     /// <summary>
     /// Notice Reference (optional)
     /// </summary>
-    public NoticeReference Reference { get; set; }
+    public NoticeReference? Reference { get; set; }
 
     /// <summary>
     /// String representation
@@ -367,11 +367,11 @@ public class UserNotice
         /// <summary>
         /// Organization
         /// </summary>
-        public string Organization { get; set; }
+        public string Organization { get; set; } = null!;
         /// <summary>
         /// Notice numbers.
         /// </summary>
-        public int[] NoticeNumbers { get; set; }
+        public int[] NoticeNumbers { get; set; } = null!;
     }
 }
 

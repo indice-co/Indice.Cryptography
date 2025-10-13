@@ -49,12 +49,12 @@ public class CABForumOrganizationIdentifierExtension : X509Extension
     }
 
     private bool _decoded = false;
-    private CABForumOrganizationIdentifier _OrganizationIdentifier;
+    private CABForumOrganizationIdentifier? _OrganizationIdentifier;
 
     /// <summary>
     /// The deserialized contents
     /// </summary>
-    public CABForumOrganizationIdentifier OrganizationIdentifier {
+    public CABForumOrganizationIdentifier? OrganizationIdentifier {
         get {
             if (!_decoded) {
                 DecodeExtension();
@@ -76,7 +76,7 @@ public class CABForumOrganizationIdentifierExtension : X509Extension
     private void DecodeExtension() {
         _OrganizationIdentifier = new CABForumOrganizationIdentifier();
         var root = DerConvert.Decode(RawData) as DerAsnSequence;
-        _OrganizationIdentifier.SchemeIdentifier = ((DerAsnPrintableString)root.Value[0]).Value;
+        _OrganizationIdentifier.SchemeIdentifier = ((DerAsnPrintableString)root!.Value[0]).Value;
         _OrganizationIdentifier.Country = ((DerAsnPrintableString)root.Value[1]).Value;
         _OrganizationIdentifier.Reference = ((DerAsnUtf8String)root.Value[2]).Value;
         _decoded = true;
@@ -106,15 +106,15 @@ public class CABForumOrganizationIdentifier
     /// <summary>
     /// Scheme Identifier. Example "PSD"
     /// </summary>
-    public string SchemeIdentifier { get; set; }
+    public string? SchemeIdentifier { get; set; }
     /// <summary>
     /// Country two letter ISO. Example "GR"
     /// </summary>
-    public string Country { get; set; }
+    public string? Country { get; set; }
     /// <summary>
     /// Reference number.
     /// </summary>
-    public string Reference { get; set; }
+    public string? Reference { get; set; }
 
     /// <inheritdoc/>
     public override string ToString() => $"{SchemeIdentifier}{Country}-{Reference}";

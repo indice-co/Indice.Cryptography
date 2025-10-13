@@ -38,7 +38,7 @@ public interface ICertificatesStore {
     /// <param name="revoked"></param>
     /// <param name="authorityKeyId"></param>
     /// <returns></returns>
-    Task<List<CertificateDetails>> GetList(DateTimeOffset? notBefore = null, bool? revoked = null, string authorityKeyId = null);
+    Task<List<CertificateDetails>> GetList(DateTimeOffset? notBefore = null, bool? revoked = null, string? authorityKeyId = null);
     /// <summary>
     /// Gets list of certificates by parameters
     /// </summary>
@@ -63,14 +63,14 @@ public static class CertificateStoreExtensions
         var privateKey = certificate.GetRSAPrivateKey();
         var certBase64 = certificate.ExportToPEM();
         //var publicBase64 = privateKey.ToSubjectPublicKeyInfo();
-        var privateBase64 = privateKey.ToRSAPrivateKey();
+        var privateBase64 = privateKey!.ToRSAPrivateKey();
         var keyId = certificate.GetSubjectKeyIdentifier();
         var authkeyId = certificate.GetAuthorityKeyIdentifier();
         var isCA = certificate.IsCertificateAuthority();
         var response = await store.Add(new CertificateDetails {
             EncodedCert = certBase64,
             PrivateKey = privateBase64,
-            KeyId = keyId.ToLower(),
+            KeyId = keyId!.ToLower(),
             SerialNumber = certificate.SerialNumber?.ToLower(),
             AuthorityKeyId = authkeyId?.ToLower(),
             Algorithm = "sha256RSA"

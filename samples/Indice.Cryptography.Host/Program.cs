@@ -11,7 +11,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddCertificateServer(builder.Environment, options => {
-    options.IssuerDomain = builder.Configuration["Certificates:Issuer"];
+    options.IssuerDomain = builder.Configuration["Certificates:Issuer"]!;
     options.AddEntityFrameworkStore(sqlOptions => {
         sqlOptions.ConfigureDbContext = sqlbuilder => {
             sqlbuilder.UseSqlServer(builder.Configuration.GetConnectionString("CertificatesDb"));
