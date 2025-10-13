@@ -23,7 +23,7 @@ internal static class StringExtensions
     }
 
     [DebuggerStepThrough]
-    public static string RemoveLeadingSlash(this string url) {
+    public static string? RemoveLeadingSlash(this string? url) {
         if (url != null && url.StartsWith("/")) {
             url = url.Substring(1);
         }
@@ -32,7 +32,7 @@ internal static class StringExtensions
     }
 
     [DebuggerStepThrough]
-    public static string RemoveTrailingSlash(this string url) {
+    public static string? RemoveTrailingSlash(this string? url) {
         if (url != null && url.EndsWith("/")) {
             url = url.Substring(0, url.Length - 1);
         }

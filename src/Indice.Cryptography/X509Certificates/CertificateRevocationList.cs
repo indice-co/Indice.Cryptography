@@ -54,7 +54,7 @@ public class CertificateRevocationListSequence : DerAsnSequence
         var list = new List<DerAsnSequence>();
         foreach (var cert in crl.Items) {
             var definition = new List<DerAsnType>();
-            var serialNumber = new DerAsnInteger(BigInteger.Parse(cert.SerialNumber.ToUpper(), NumberStyles.AllowHexSpecifier));
+            var serialNumber = new DerAsnInteger(BigInteger.Parse(cert.SerialNumber!.ToUpper(), NumberStyles.AllowHexSpecifier));
             var revocationDate = new DerAsnUtcTime(cert.RevocationDate);
             var reason = new DerAsnSequence(new DerAsnType[] {
                 new DerAsnSequence(new DerAsnType [] {
@@ -126,7 +126,7 @@ public class CertificateRevocationListSequence : DerAsnSequence
     /// <param name="signingKey"></param>
     /// <param name="encoder"></param>
     /// <returns></returns>
-    public byte[] SignAndSerialize(RSA signingKey, IDerAsnEncoder encoder = null) {
+    public byte[] SignAndSerialize(RSA signingKey, IDerAsnEncoder? encoder = null) {
         var data = DerConverter.DerConvert.Encode(this);
         var signature = signingKey.SignData(data, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
         var container = new DerAsnSequence(new DerAsnType[] {
@@ -155,7 +155,7 @@ public class CertificateRevocationListSequence : DerAsnSequence
     public CertificateRevocationList Extract() {
         var crl = new CertificateRevocationList();
         var details = Value[0] as DerAsnSequence;
-        var version = details.Value[0] as DerAsnInteger;
+        var version = details!.Value[0] as DerAsnInteger;
         var algorithm = ((DerAsnSequence)details.Value[1]).Value[0] as DerAsnObjectIdentifier;
         var subject = ((DerAsnSequence)details.Value[2]).Value.Cast<DerAsnSet>();
         crl.EffectiveDate = ((DerAsnUtcTime)details.Value[3]).Value.DateTime;
@@ -173,11 +173,11 @@ public class CertificateRevocationListSequence : DerAsnSequence
             var seq = ((DerAsnSequence)part.Value[0]);
             var oid = seq.Value[0] as DerAsnObjectIdentifier;
             var text = seq.Value[1] as DerAsnPrintableString;
-            var oidString = string.Join(".", oid.Value);
+            var oidString = string.Join(".", oid!.Value);
             switch (oidString) {
-                case Oid_Issuer_C: crl.Country = text.Value; break;
-                case Oid_Issuer_O: crl.Organization = text.Value; break;
-                case Oid_Issuer_CN: crl.IssuerCommonName = text.Value; break;
+                case Oid_Issuer_C: crl.Country = text!.Value; break;
+                case Oid_Issuer_O: crl.Organization = text!.Value; break;
+                case Oid_Issuer_CN: crl.IssuerCommonName = text!.Value; break;
             }
         }
         foreach (var item in list) {
@@ -188,24 +188,24 @@ public class CertificateRevocationListSequence : DerAsnSequence
                 var reasonData = ((DerAsnSequence)((DerAsnSequence)item.Value[2]).Value[0]).Value[1];
                 if (reasonData is OctetStringSequence) {
                     var reasonSeq = reasonData as OctetStringSequence;
-                    reason = (RevokedCertificate.CRLReasonCode)((DerAsnEnumerated)reasonSeq.Value[0]).Value;
+                    reason = (RevokedCertificate.CRLReasonCode)((DerAsnEnumerated)reasonSeq!.Value[0]).Value;
                 } else if (reasonData is DerAsnOctetString) {
                     reason = (RevokedCertificate.CRLReasonCode)((DerAsnOctetString)reasonData).Value[2];
                 }
             }
             crl.Items.Add(new RevokedCertificate {
-                RevocationDate = revocationDate.Value.DateTime,
-                SerialNumber = serialNumber.Value.ToString("x16"),
+                RevocationDate = revocationDate!.Value.DateTime,
+                SerialNumber = serialNumber!.Value.ToString("x16"),
                 ReasonCode = reason
             });
         }
         foreach (DerAsnSequence item in info) {
             var oid = item.Value[0] as DerAsnObjectIdentifier;
-            var oidString = string.Join(".", oid.Value);
+            var oidString = string.Join(".", oid!.Value);
             var data = item.Value[1] as DerAsnOctetString;
             switch (oidString) {
-                case Oid_AuthorityKey: crl.AuthorizationKeyId = string.Join("", data.Value.Skip(4).Select(x => x.ToString("X2"))); break;
-                case Oid_CRLNumber: crl.CrlNumber = (int)new BigInteger(data.Value.Skip(3).ToArray()); break;
+                case Oid_AuthorityKey: crl.AuthorizationKeyId = string.Join("", data!.Value.Skip(4).Select(x => x.ToString("X2"))); break;
+                case Oid_CRLNumber: crl.CrlNumber = (int)new BigInteger(data!.Value.Skip(3).ToArray()); break;
             }
         }
         return crl;
@@ -240,15 +240,15 @@ public class CertificateRevocationList
     /// <summary>
     /// Issueer CN
     /// </summary>
-    public string IssuerCommonName { get; set; }
+    public string? IssuerCommonName { get; set; }
     /// <summary>
     /// Issuer O
     /// </summary>
-    public string Organization { get; set; }
+    public string? Organization { get; set; }
     /// <summary>
     /// Issuer C
     /// </summary>
-    public string Country { get; set; }
+    public string? Country { get; set; }
     /// <summary>
     /// Looks like the id of the list.
     /// </summary>
@@ -264,7 +264,7 @@ public class CertificateRevocationList
     /// <summary>
     /// The Subject key Identitfier of the issuing certificate.
     /// </summary>
-    public string AuthorizationKeyId { get; set; }
+    public string? AuthorizationKeyId { get; set; }
     /// <summary>
     /// The revoked certificates
     /// </summary>
@@ -279,7 +279,7 @@ public class RevokedCertificate
     /// <summary>
     /// Certificate serialnumber.
     /// </summary>
-    public string SerialNumber { get; set; }
+    public string? SerialNumber { get; set; }
     /// <summary>
     /// Date and time of the revocation
     /// </summary>
