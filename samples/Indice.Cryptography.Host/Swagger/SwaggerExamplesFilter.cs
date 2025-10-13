@@ -2,7 +2,7 @@
 using Microsoft.OpenApi.Models;
 using Swashbuckle.AspNetCore.SwaggerGen;
 
-namespace Indice.Oba.Host.Swagger;
+namespace Indice.Cryptography.Host.Swagger;
 
 public class SchemaExamplesFilter : ISchemaFilter
 {

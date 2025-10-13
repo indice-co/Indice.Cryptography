@@ -14,19 +14,19 @@ public class CertificatesStoreOptions
     /// <value>
     /// The configure database context.
     /// </value>
-    public Action<DbContextOptionsBuilder> ConfigureDbContext { get; set; }
+    public Action<DbContextOptionsBuilder>? ConfigureDbContext { get; set; }
     /// <summary>
     /// Callback in DI to resolve the EF DbContextOptions. If set, ConfigureDbContext will not be used.
     /// </summary>
     /// <value>
     /// The configure database context.
     /// </value>
-    public Action<IServiceProvider, DbContextOptionsBuilder> ResolveDbContextOptions { get; set; }
+    public Action<IServiceProvider, DbContextOptionsBuilder>? ResolveDbContextOptions { get; set; }
     /// <summary>
     /// Gets or sets the default schema.
     /// </summary>
     /// <value>
     /// The default schema.
     /// </value>
-    public string DefaultSchema { get; set; } = null;
+    public string DefaultSchema { get; set; } = null!;
 }

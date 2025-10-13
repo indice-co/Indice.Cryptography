@@ -1,12 +1,8 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
+﻿using System.Collections;
 using System.Reflection;
-using System.Threading.Tasks;
 using Microsoft.OpenApi.Any;
 
-namespace Indice.Oba.Host.Swagger;
+namespace Indice.Cryptography.Host.Swagger;
 
 /// <summary>
 /// Extensions over Open Api

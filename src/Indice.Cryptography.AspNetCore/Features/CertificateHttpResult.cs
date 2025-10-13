@@ -65,24 +65,20 @@ public sealed class CertificateHttpResult : IResult, IEndpointMetadataProvider, 
                 break;
             case "application/x-x509-user-cert":
             case "application/pkix-cert":
-                //using (var streamWriter = new StreamWriter(stream, Encoding.ASCII)) {
                     await streamWriter.WriteAsync(_result.EncodedCert);
                     await streamWriter.FlushAsync();
-                //}
                 break;
             case "application/pkcs8":
-                //using (var streamWriter = new StreamWriter(stream, Encoding.ASCII)) {
                     await streamWriter.WriteAsync(_result.PrivateKey);
                     await streamWriter.FlushAsync();
-                //}
                 break;
             case "application/x-pkcs12":
-                var cert = new X509Certificate2(Encoding.ASCII.GetBytes(_result.EncodedCert));
-                var privateKey = _result.PrivateKey.ReadAsRSAKey();
+                var cert = new X509Certificate2(Encoding.ASCII.GetBytes(_result.EncodedCert!));
+                var privateKey = _result.PrivateKey!.ReadAsRSAKey();
                 var buffer = cert.CopyWithPrivateKey(RSA.Create(privateKey)).Export(X509ContentType.Pkcs12, _password);
                 await stream.WriteAsync(buffer, 0, buffer.Length);
                 cert.Dispose();
-                httpContext.Response.Headers.Add("Content-Disposition", "attachment; filename=certificate.pfx");
+                httpContext.Response.Headers.Append("Content-Disposition", "attachment; filename=certificate.pfx");
                 break;
             default: throw new Exception("Unsuported certificate format");
         }
@@ -95,7 +91,7 @@ public sealed class CertificateHttpResult : IResult, IEndpointMetadataProvider, 
         ArgumentNullException.ThrowIfNull(builder);
 
         //builder.Metadata.Add(new ProducesResponseTypeMetadata(typeof(CertificateDetails), StatusCodes.Status200OK, System.Net.Mime.MediaTypeNames.Application.Json));
-        builder.Metadata.Add(new ProducesResponseTypeMetadata(null, StatusCodes.Status200OK, System.Net.Mime.MediaTypeNames.Application.Json, _formats["crt"], _formats["cer"], _formats["key"], _formats["pfx"]));
+        builder.Metadata.Add(new ProducesResponseTypeMetadata(StatusCodes.Status200OK, type: typeof(CertificateDetails), contentTypes: [System.Net.Mime.MediaTypeNames.Application.Json, _formats["crt"], _formats["cer"], _formats["key"], _formats["pfx"]]));
     }
 }
 
@@ -116,23 +112,4 @@ public static class CertificateHttpResultExtensions
         => new(result, format, password);
 
 
-}
-/// <summary>Equivalent to the .Produces call to add metadata to endpoints</summary>
-internal sealed class ProducesResponseTypeMetadata : IProducesResponseTypeMetadata
-{
-    /// <summary>Constructor</summary>
-    public ProducesResponseTypeMetadata(Type? type, int statusCode, string contentType, params string[] additionalContentTypes) {
-        Type = type;
-        StatusCode = statusCode;
-        var list = new List<string>() { contentType };
-        if (additionalContentTypes is not null) list.AddRange(additionalContentTypes);
-        ContentTypes = list;
-    }
-
-    /// <summary>The clr type for the response body</summary>
-    public Type? Type { get; }
-    /// <summary>Http status code</summary>
-    public int StatusCode { get; }
-    /// <summary>Supported response body content types</summary>
-    public IEnumerable<string> ContentTypes { get; }
 }

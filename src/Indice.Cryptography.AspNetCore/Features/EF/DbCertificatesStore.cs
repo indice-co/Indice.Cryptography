@@ -28,7 +28,7 @@ public class DbCertificatesStore : ICertificatesStore
     /// Retrieves a stored certificate by Id.
     /// </summary>
     /// <param name="keyId">The id to search for.</param>
-    public async Task<CertificateDetails> GetById(string keyId) {
+    public async Task<CertificateDetails?> GetById(string keyId) {
         var cert = default(CertificateDetails);
         var dbCert = await DbContext.Certificates.FindAsync(keyId);
         if (dbCert != null && !dbCert.Revoked) {
@@ -43,7 +43,7 @@ public class DbCertificatesStore : ICertificatesStore
     /// <param name="notBefore"></param>
     /// <param name="revoked"></param>
     /// <param name="authorityKeyId"></param>
-    public async Task<List<CertificateDetails>> GetList(DateTimeOffset? notBefore = null, bool? revoked = null, string authorityKeyId = null) {
+    public async Task<List<CertificateDetails>> GetList(DateTimeOffset? notBefore = null, bool? revoked = null, string? authorityKeyId = null) {
         var results = await DbContext.Certificates
                                      .Where(x => (notBefore == null || x.CreatedDate >= notBefore)
                                               && (revoked == null || x.Revoked == revoked)
@@ -61,8 +61,8 @@ public class DbCertificatesStore : ICertificatesStore
                                                && x.Revoked == true)
                                      .ToListAsync();
         return results.Select(x => new RevokedCertificateDetails {
-            RevocationDate = x.RevocationDate.Value,
-            SerialNumber = x.SerialNumber
+            RevocationDate = x.RevocationDate!.Value,
+            SerialNumber = x.SerialNumber!
         })
         .ToList();
     }
@@ -94,7 +94,7 @@ public class DbCertificatesStore : ICertificatesStore
             throw new Exception($"There is already a certificate with the same Subject Key Identifier \"{dbCert.KeyId}\"in the store.");
         }
         DbContext.Certificates.Add(new DbCertificate {
-            KeyId = certificate.KeyId,
+            KeyId = certificate.KeyId!,
             Algorithm = certificate.Algorithm,
             AuthorityKeyId = certificate.AuthorityKeyId,
             EncodedCert = certificate.EncodedCert,

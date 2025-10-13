@@ -10,39 +10,39 @@ public class DbCertificate
     /// <summary>
     /// Base 64 Pem encoded cer
     /// </summary>
-    public string EncodedCert { get; set; }
+    public string? EncodedCert { get; set; }
     /// <summary>
     /// Private key base64
     /// </summary>
-    public string PrivateKey { get; set; }
+    public string? PrivateKey { get; set; }
     /// <summary>
     /// Subject Key Identifier
     /// </summary>
-    public string KeyId { get; set; }
+    public string KeyId { get; set; } = null!;
     /// <summary>
     /// Serial number
     /// </summary>
-    public string SerialNumber { get; set; }
+    public string? SerialNumber { get; set; }
     /// <summary>
     /// Authority Subject Key Identifier (issuing certificate Subject Key Identifier)
     /// </summary>
-    public string AuthorityKeyId { get; set; }
+    public string? AuthorityKeyId { get; set; }
     /// <summary>
     /// SHA256WITHRSA
     /// </summary>
-    public string Algorithm { get; set; }
+    public string? Algorithm { get; set; }
     /// <summary>
     /// The certificate thumbprint
     /// </summary>
-    public string Thumbprint { get; set; }
+    public string? Thumbprint { get; set; }
     /// <summary>
     /// The certificate Distinguished name
     /// </summary>
-    public string Subject { get; set; }
+    public string? Subject { get; set; }
     /// <summary>
     /// The data used to create this
     /// </summary>
-    public string Data { get; set; }
+    public string? Data { get; set; }
     /// <summary>
     /// Is certificate authority. marks an issuing certificate
     /// </summary>
