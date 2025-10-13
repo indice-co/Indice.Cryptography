@@ -30,14 +30,14 @@ public class SubjectBuilder
     /// </summary>
     /// <param name="key">Key can any of the OU, O, C, E names etc.</param>
     /// <returns></returns>
-    public string this[string key] => GetValue(key);
+    public string? this[string key] => GetValue(key);
 
     /// <summary>
     /// Get a value from the subject or null if there is none.
     /// </summary>
     /// <param name="key"></param>
     /// <returns></returns>
-    public string GetValue(string key) {
+    public string? GetValue(string key) {
         return Subject.ContainsKey(key) ? Subject[key] : null;
     }
 
@@ -81,7 +81,7 @@ public class SubjectBuilder
     /// <param name="state"></param>
     /// <param name="city"></param>
     /// <returns></returns>
-    public SubjectBuilder AddLocation(string countryCode, string state = null, string city = null) {
+    public SubjectBuilder AddLocation(string countryCode, string? state = null, string? city = null) {
         Subject.Add("C", countryCode);
         if (!string.IsNullOrEmpty(state))
             Subject.Add("S", state);
@@ -145,7 +145,7 @@ public class SubjectBuilder
     /// Gets Organization identifier as it is identified by the 2.5.4.97 Oid
     /// </summary>
     /// <returns></returns>
-    public string GetOrganizationIdentifier() => GetValue("2.5.4.97") ?? GetValue("OID.2.5.4.97");
+    public string? GetOrganizationIdentifier() => GetValue("2.5.4.97") ?? GetValue("OID.2.5.4.97");
 
     /// <summary>
     /// Generate the <see cref="X500DistinguishedName"/>

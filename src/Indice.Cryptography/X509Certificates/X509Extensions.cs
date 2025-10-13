@@ -103,12 +103,12 @@ public static class CertificatesExtensions
     /// </summary>
     /// <param name="leafCert"></param>
     /// <returns></returns>
-    public static X509Certificate2 GetIssuer(X509Certificate2 leafCert) {
+    public static X509Certificate2? GetIssuer(X509Certificate2 leafCert) {
         if (leafCert.Subject == leafCert.Issuer) { return leafCert; }
         var chain = new X509Chain();
         chain.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck;
         chain.Build(leafCert);
-        X509Certificate2 issuer = null;
+        X509Certificate2? issuer = null;
         if (chain.ChainElements.Count > 1) {
             issuer = chain.ChainElements[1].Certificate;
         }
@@ -121,7 +121,7 @@ public static class CertificatesExtensions
     /// </summary>
     /// <param name="cert"></param>
     /// <returns></returns>
-    public static QualifiedCertificateStatements GetQualifiedCertificateStatements(this X509Certificate2 cert) {
+    public static QualifiedCertificateStatements? GetQualifiedCertificateStatements(this X509Certificate2 cert) {
         var statements = default(QualifiedCertificateStatements);
         var extension = cert.Extensions[QualifiedCertificateStatementsExtension.Oid_QC_Statements];
         if (extension != null) {
@@ -136,8 +136,8 @@ public static class CertificatesExtensions
     /// </summary>
     /// <param name="cert"></param>
     /// <returns></returns>
-    public static string GetSubjectKeyIdentifier(this X509Certificate2 cert) {
-        string keyid = null;
+    public static string? GetSubjectKeyIdentifier(this X509Certificate2 cert) {
+        string? keyid = null;
         var extension = cert.Extensions[AuthorityKeyIdentifierExtension.Oid_SubjectKeyIdentifier] as X509SubjectKeyIdentifierExtension;
         if (extension != null) {
             keyid = extension.SubjectKeyIdentifier;
@@ -150,8 +150,8 @@ public static class CertificatesExtensions
     /// </summary>
     /// <param name="cert"></param>
     /// <returns></returns>
-    public static string GetAuthorityKeyIdentifier(this X509Certificate2 cert) {
-        string keyid = null;
+    public static string? GetAuthorityKeyIdentifier(this X509Certificate2 cert) {
+        string? keyid = null;
         var extension = cert.Extensions[AuthorityKeyIdentifierExtension.Oid_AuthorityKeyIdentifier];
         if (extension != null) {
             keyid = new AuthorityKeyIdentifierExtension(extension, extension.Critical).AuthorityKeyIdentifier;
@@ -164,7 +164,7 @@ public static class CertificatesExtensions
     /// </summary>
     /// <param name="cert"></param>
     /// <returns></returns>
-    public static AccessDescription[] GetAuthorityInformationAccess(this X509Certificate2 cert) {
+    public static AccessDescription[]? GetAuthorityInformationAccess(this X509Certificate2 cert) {
         var accessDescriptions = default(AccessDescription[]);
         var extension = cert.Extensions[AuthorityInformationAccessExtension.Oid_AuthorityInformationAccess];
         if (extension != null) {
@@ -181,7 +181,7 @@ public static class CertificatesExtensions
     /// </summary>
     /// <param name="cert"></param>
     /// <returns></returns>
-    public static PolicyInformation[] GetCertificatePolicies(this X509Certificate2 cert) {
+    public static PolicyInformation[]? GetCertificatePolicies(this X509Certificate2 cert) {
         var policies = default(PolicyInformation[]);
         var extension = cert.Extensions[CertificatePoliciesExtension.Oid_CertificatePolicies];
         if (extension != null) {
@@ -195,7 +195,7 @@ public static class CertificatesExtensions
     /// </summary>
     /// <param name="cert"></param>
     /// <returns></returns>
-    public static CRLDistributionPoint[] GetCRLDistributionPoints(this X509Certificate2 cert) {
+    public static CRLDistributionPoint[]? GetCRLDistributionPoints(this X509Certificate2 cert) {
         var points = default(CRLDistributionPoint[]);
         var extension = cert.Extensions[CRLDistributionPointsExtension.Oid_CRLDistributionPoints];
         if (extension != null) {
@@ -209,7 +209,7 @@ public static class CertificatesExtensions
     /// </summary>
     /// <param name="cert"></param>
     /// <returns></returns>
-    public static CABForumOrganizationIdentifier GetCABForumOrganizationIdentifier(this X509Certificate2 cert) {
+    public static CABForumOrganizationIdentifier? GetCABForumOrganizationIdentifier(this X509Certificate2 cert) {
         var org = default(CABForumOrganizationIdentifier);
         var extension = cert.Extensions[CABForumOrganizationIdentifierExtension.Oid_CabForumOrganizationIdentifier];
         if (extension != null) {

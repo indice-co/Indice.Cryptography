@@ -316,7 +316,7 @@ public class HttpSignature : Dictionary<string, object?>
     /// <param name="httpRequestTarget"></param>
     /// <param name="extraHeaderKeyValues">extra parameters to include</param>
     /// <returns></returns>
-    public bool Validate(SecurityKey key, string digest, string requestId, DateTime requestDate, HttpRequestTarget httpRequestTarget, IDictionary<string, string?> extraHeaderKeyValues? = null) {
+    public bool Validate(SecurityKey key, string digest, string requestId, DateTime requestDate, HttpRequestTarget httpRequestTarget, IDictionary<string, string>? extraHeaderKeyValues = null) {
         var headers = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase) {
             ["X-Request-Id"] = requestId,
             [HeaderFieldNames.Created] = requestDate.ToString("r"),
