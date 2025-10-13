@@ -9,12 +9,6 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <UserSecretsId>c4cfa362-a2ea-4609-914d-7ab21fe13b51</UserSecretsId>
   </PropertyGroup>
-
-  <ItemGroup>
-    <Content Include="signatures-certificate.pfx">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-  </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Swashbuckle.AspNetCore.SwaggerGen" Version="6.5.0" />
     <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" Version="6.5.0" />
