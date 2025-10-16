@@ -110,7 +110,7 @@ public struct NCAId
             if (throwOnError) { 
                 throw new FormatException("Invalid PSD2 Authorization Number");
             } else {
-                return new NCAId(null, null, null, text);
+                return new NCAId(null, null!, null!, text);
             }
         }
         var match = regex.Match(text);
