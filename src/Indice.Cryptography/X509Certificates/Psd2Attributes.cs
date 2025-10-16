@@ -46,7 +46,7 @@ public class Psd2Attributes
             _roles[1] ? "PSP_PI" : null,
             _roles[2] ? "PSP_AI" : null,
             _roles[3] ? "PSP_IC" : null,
-        }.Where(x => x != null).ToArray();
+        }.Where(x => x != null).ToArray()!;
         set {
             _roles = new bool[4];
             if (value == null)
@@ -65,7 +65,7 @@ public class Psd2Attributes
     /// <summary>
     /// NCAName - competent authority name
     /// </summary>
-    public string AuthorityName { get; set; }
+    public string? AuthorityName { get; set; }
 
     /// <summary>
     /// NCAId - PSD2 Authorization Number or other recognized identifier 
