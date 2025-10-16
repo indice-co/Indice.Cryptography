@@ -402,7 +402,7 @@ public sealed class HttpSignature : Dictionary<string, object?>
             return false;
         }
 
-        if (key is JsonWebKey jwk) {
+        if (key is JsonWebKey {Kty: JsonWebAlgorithmsKeyTypes.Octet } jwk) {
             jwk.K = Algorithm switch {
                 "hmac-sha256" => Base64UrlEncoder.Encode(SHA256.HashData(Base64UrlEncoder.DecodeBytes(jwk.K))),
                 "hmac-sha384" => Base64UrlEncoder.Encode(SHA384.HashData(Base64UrlEncoder.DecodeBytes(jwk.K))),
