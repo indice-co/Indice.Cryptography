@@ -215,15 +215,15 @@ public class Psd2QcStatement : DerAsnSequence
         var roleSequence = typeSequence?.Value.Where(x => x is DerAsnSequence).FirstOrDefault() as DerAsnSequence;
         var ncaName = typeSequence?.Value[1] as DerAsnUtf8String;
         var ncaId = typeSequence?.Value[2] as DerAsnUtf8String;
-        attributes.AuthorityName = ncaName.Value;
-        attributes.AuthorizationId = NCAId.Parse(ncaId.Value, false);
-        foreach (var item in roleSequence.Value) {
+        attributes.AuthorityName = ncaName?.Value;
+        attributes.AuthorizationId = NCAId.Parse(ncaId!.Value, false);
+        foreach (var item in roleSequence!.Value) {
             if (!(item is DerAsnSequence)) {
                 continue;
             }
             var role = item as DerAsnSequence;
-            var roleOid = role.Value[0] as DerAsnObjectIdentifier;
-            var roleOidString = string.Join(".", roleOid.Value);
+            var roleOid = role!.Value[0] as DerAsnObjectIdentifier;
+            var roleOidString = string.Join(".", roleOid!.Value);
             switch (roleOidString) {
                 case Oid_PSD2_Roles_PSP_AS: attributes.HasAccountServicing = true; break;
                 case Oid_PSD2_Roles_PSP_PI: attributes.HasPaymentInitiation = true; break;

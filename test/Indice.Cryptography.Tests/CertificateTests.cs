@@ -1,6 +1,4 @@
-using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
-using System.Text;
 using Indice.Cryptography.X509Certificates;
 using Newtonsoft.Json;
 using Xunit;
@@ -87,7 +85,7 @@ public class CertificateTests
         var crlSeq = new CertificateRevocationListSequence(crl);
         var manager = new CertificateManager();
         var caCert = manager.CreateRootCACertificate("identityserver.gr");
-        var data = crlSeq.SignAndSerialize(caCert.PrivateKey as RSA);
+        var data = crlSeq.SignAndSerialize(caCert.GetRSAPrivateKey());
         File.WriteAllBytes(Path.Combine(Directory.GetCurrentDirectory(), "my.crl"), data);
         Assert.True(true);
     }
@@ -106,7 +104,7 @@ public class CertificateTests
     [Fact]
     public void ImportBase64Certificate() {
         var qwacBase64 = "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";
-        var qwacCert = new X509Certificate2(Encoding.UTF8.GetBytes(qwacBase64), "", X509KeyStorageFlags.Exportable);
+        var qwacCert = X509CertificateLoader.LoadCertificate(Convert.FromBase64String(qwacBase64));
         var statements = default(QualifiedCertificateStatements);
         var policyInfos = default(PolicyInformation[]);
         var accessDescriptions = default(AccessDescription[]);

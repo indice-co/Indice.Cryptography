@@ -28,13 +28,13 @@ public class DbCertificatesStore : ICertificatesStore
     /// Retrieves a stored certificate by Id.
     /// </summary>
     /// <param name="keyId">The id to search for.</param>
-    public async Task<CertificateDetails?> GetById(string keyId) {
+    public async Task<CertificateDetails> GetById(string keyId) {
         var cert = default(CertificateDetails);
         var dbCert = await DbContext.Certificates.FindAsync(keyId);
         if (dbCert != null && !dbCert.Revoked) {
             cert = MapToDetails(dbCert);
         }
-        return cert;
+        return cert!;
     }
 
     /// <summary>

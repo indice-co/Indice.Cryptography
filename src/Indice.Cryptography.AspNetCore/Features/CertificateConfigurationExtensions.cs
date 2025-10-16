@@ -18,7 +18,7 @@ public static class CertificateConfigurationExtensions
     /// <param name="hostEnvironment">The hosting environment</param>
     /// <param name="configureAction">Delegate for configuring options for certificate endpoints feature.</param>
     /// <returns></returns>
-    public static IServiceCollection AddCertificateServer(this IServiceCollection services, IWebHostEnvironment hostEnvironment, Action<CertificateEndpointsOptions> configureAction = null!) {
+    public static IServiceCollection AddCertificateServer(this IServiceCollection services, IWebHostEnvironment hostEnvironment, Action<CertificateEndpointsOptions>? configureAction = null) {
         AddCertificateServerInternal(services, hostEnvironment, configureAction);
         services.AddEndpointsApiExplorer();
         return services;
@@ -31,7 +31,7 @@ public static class CertificateConfigurationExtensions
     /// <param name="hostEnvironment">The hosting environment</param>
     /// <param name="configureAction">Delegate for configuring options for certificate endpoints feature.</param>
     /// <returns></returns>
-    internal static IServiceCollection AddCertificateServerInternal(this IServiceCollection services, IWebHostEnvironment hostEnvironment, Action<CertificateEndpointsOptions> configureAction = null!) {
+    internal static IServiceCollection AddCertificateServerInternal(this IServiceCollection services, IWebHostEnvironment hostEnvironment, Action<CertificateEndpointsOptions>? configureAction = null) {
         var options = new CertificateEndpointsOptions {
             IssuerDomain = "www.example.com",
             PfxPassphrase = "???"

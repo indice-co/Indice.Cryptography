@@ -14,7 +14,7 @@ namespace Indice.Cryptography.Tokens.HttpMessageSigning;
 /// The Signature HTTP Header, which is typically used by automated software agents.
 /// As described in https://tools.ietf.org/html/draft-cavage-http-signatures-10
 /// </summary>
-public class HttpSignature : Dictionary<string, object?>
+public sealed class HttpSignature : Dictionary<string, object?>
 {
     /// <summary>
     /// The header name for this part.
@@ -24,7 +24,7 @@ public class HttpSignature : Dictionary<string, object?>
     /// <summary>
     /// Provides a mapping for the 'algorithm' value so that values are within the HTTP Signature namespace.
     /// </summary>
-    private readonly IDictionary<string, string> OutboundAlgorithmMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) {
+    private static readonly IDictionary<string, string> OutboundAlgorithmMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) {
         [SecurityAlgorithms.RsaSha256Signature] = "rsa-sha256",
         [SecurityAlgorithms.RsaSha512Signature] = "rsa-sha512",
         [SecurityAlgorithms.RsaSha256] = "rsa-sha256",
@@ -41,13 +41,22 @@ public class HttpSignature : Dictionary<string, object?>
     /// <summary>
     /// Provides a mapping for the 'algorithm' value so that values are within the HTTP Signature namespace.
     /// </summary>
-    private readonly IDictionary<string, string> InboundAlgorithmMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) {
+    private static readonly IDictionary<string, string> InboundAlgorithmMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) {
         ["rsa-sha256"] = SecurityAlgorithms.RsaSha256Signature,
         ["rsa-sha384"] = SecurityAlgorithms.RsaSha384Signature,
         ["rsa-sha512"] = SecurityAlgorithms.RsaSha512Signature,
         ["hmac-sha256"] = SecurityAlgorithms.HmacSha256Signature,
         ["hmac-sha384"] = SecurityAlgorithms.HmacSha384Signature,
         ["hmac-sha512"] = SecurityAlgorithms.HmacSha512Signature
+    };
+
+    private static readonly IDictionary<string, HashAlgorithmName> HashAlgorithmMap = new Dictionary<string, HashAlgorithmName>(StringComparer.OrdinalIgnoreCase) {
+        ["rsa-sha256"] = HashAlgorithmName.SHA256,
+        ["rsa-sha384"] = HashAlgorithmName.SHA384,
+        ["rsa-sha512"] = HashAlgorithmName.SHA512,
+        ["hmac-sha256"] = HashAlgorithmName.SHA256,
+        ["hmac-sha384"] = HashAlgorithmName.SHA384,
+        ["hmac-sha512"] = HashAlgorithmName.SHA512
     };
 
     /// <summary>
@@ -76,7 +85,7 @@ public class HttpSignature : Dictionary<string, object?>
             }
             headerKeyValuesToSign ??= new Dictionary<string, string?>();
             var message = GenerateMessage(headerKeyValuesToSign);
-            var hashingAlgorithm = signingCredentials.Algorithm == OutboundAlgorithmMap[SecurityAlgorithms.RsaSha512Signature] ? HashAlgorithmName.SHA512 : HashAlgorithmName.SHA256;
+            var hashingAlgorithm = HashAlgorithmMap[Algorithm];
             if (signingCredentials is X509SigningCredentials x509SigningCredentials) {
                 using (var key = x509SigningCredentials.Certificate.GetRSAPrivateKey()!) {
                     this[HttpSignatureParameterNames.Signature] = Convert.ToBase64String(key.SignData(Encoding.UTF8.GetBytes(message), hashingAlgorithm, RSASignaturePadding.Pkcs1));
@@ -85,6 +94,8 @@ public class HttpSignature : Dictionary<string, object?>
                 this[HttpSignatureParameterNames.Signature] = Convert.ToBase64String(HashAndSignBytes(Encoding.UTF8.GetBytes(message), rsaKey.Parameters, hashingAlgorithm)!);
             } else if (signingCredentials.Key is X509SecurityKey x509Key) {
                 this[HttpSignatureParameterNames.Signature] = Convert.ToBase64String(HashAndSignBytes(Encoding.UTF8.GetBytes(message), (RSACng)x509Key.PrivateKey, hashingAlgorithm)!);
+            } else if (signingCredentials.Key is JsonWebKey securityKey) {
+                this[HttpSignatureParameterNames.Signature] = Convert.ToBase64String(HashAndSignBytes(Encoding.UTF8.GetBytes(message), securityKey, Algorithm, hashingAlgorithm)!);
             }
             Headers = new HashSet<string>(headerKeyValuesToSign.Where(x => x.Value != null).Select(x => x.Key.ToLowerInvariant()));
             if (headerKeyValuesToSign.TryGetValue(HeaderFieldNames.Created, out var value)) {
@@ -105,6 +116,33 @@ public class HttpSignature : Dictionary<string, object?>
         try {
             // Hash and sign the data. Pass a new instance of SHA1CryptoServiceProvider to specify the use of SHA1 for hashing.
             return RSAalg.SignData(DataToSign, hashAlgorithm, RSASignaturePadding.Pkcs1);
+        } catch (CryptographicException e) {
+            Console.WriteLine(e.Message);
+            return null;
+        }
+    }
+
+    private static byte[]? HashAndSignBytes(byte[] DataToSign, JsonWebKey jwk, string signingAlgorithm, HashAlgorithmName keyAlgorithm) {
+        if (string.IsNullOrEmpty(jwk.K)) {
+            throw new ArgumentException("JWK does not contain the 'k' parameter");
+        }
+
+        try {
+            var secret = Base64UrlEncoder.DecodeBytes(jwk.K);
+            var key = keyAlgorithm.Name switch {
+                nameof(HashAlgorithmName.SHA256) => SHA256.HashData(secret),
+                nameof(HashAlgorithmName.SHA384) => SHA384.HashData(secret),
+                nameof(HashAlgorithmName.SHA512) => SHA512.HashData(secret),
+                _ => throw new NotSupportedException($"Unsupported algorithm: {signingAlgorithm}")
+            };
+
+            using HMAC hmac = signingAlgorithm switch {
+                "hmac-sha256" => new HMACSHA256(key),
+                "hmac-sha384" => new HMACSHA384(key),
+                "hmac-sha512" => new HMACSHA512(key),
+                _ => throw new NotSupportedException($"Unsupported algorithm: {signingAlgorithm}")
+            };
+            return hmac.ComputeHash(DataToSign);
         } catch (CryptographicException e) {
             Console.WriteLine(e.Message);
             return null;
@@ -360,6 +398,19 @@ public class HttpSignature : Dictionary<string, object?>
     /// <param name="key">The public key</param>
     /// <param name="headers"></param>
     public bool Validate(SecurityKey key, IDictionary<string, string?> headers) {
+        if (!key.IsSupportedAlgorithm(InboundAlgorithmMap[Algorithm!])) {
+            return false;
+        }
+
+        if (key is JsonWebKey jwk) {
+            jwk.K = Algorithm switch {
+                "hmac-sha256" => Base64UrlEncoder.Encode(SHA256.HashData(Base64UrlEncoder.DecodeBytes(jwk.K))),
+                "hmac-sha384" => Base64UrlEncoder.Encode(SHA384.HashData(Base64UrlEncoder.DecodeBytes(jwk.K))),
+                "hmac-sha512" => Base64UrlEncoder.Encode(SHA512.HashData(Base64UrlEncoder.DecodeBytes(jwk.K))),
+                _ => throw new NotSupportedException($"Unsupported algorithm: {Algorithm}")
+            };
+        }
+
         var cryptoProviderFactory = key.CryptoProviderFactory;
         var signatureProvider = cryptoProviderFactory.CreateForVerifying(key, InboundAlgorithmMap[Algorithm!]);
         try {
