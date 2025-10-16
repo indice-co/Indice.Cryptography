@@ -66,7 +66,7 @@ public class HttpTokenValidationTests
     }
 
     [Fact]
-    public void HttpTokenValidationTest_HMAC() {              
+    public void HttpTokenValidationTest_HMAC() {
         var secret = "simple-key";
         var securityKey = JsonWebKeyConverter.ConvertFromSymmetricSecurityKey(
             new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret)) {
@@ -108,10 +108,39 @@ public class HttpTokenValidationTests
         var signatureHeader = token.Signature.ToString();
 
         // Get the public key from the private key in JWK format (as it would be received from identity server)
-        var rsa = RSA.Create();
-        rsa.ImportFromPem(TEST_RSA_PrivateKey_256.ToCharArray());
+        var publicKey = X509CertificateLoader.LoadCertificate(Convert.FromBase64String(TEST_X509_PublicKey_2048));
+        var rsa = publicKey.GetRSAPublicKey();        
         var validationKey = JsonWebKeyConverter.ConvertFromRSASecurityKey(new RsaSecurityKey(rsa) {
             KeyId = securityKey.KeyId
+        });
+
+        var validatedToken = new HttpSignatureSecurityToken(digestHeader, signatureHeader);
+        var disgestIsValid = validatedToken.Digest.Validate(Encoding.UTF8.GetBytes(payload));
+        var signatureIsValid = validatedToken.Signature.Validate(validationKey, digestHeader, requestId, requestDate, requestTarget);
+        Assert.True(disgestIsValid);
+        Assert.True(signatureIsValid);
+    }
+
+    [Fact]
+    public void HttpTokenValidationTest_RSA_JWK_BOTH() {
+        var privateKey = RSA.Create();
+        privateKey.ImportFromPem(TEST_RSA_PrivateKey_256.ToCharArray());
+        var singingKey = JsonWebKeyConverter.ConvertFromRSASecurityKey(new RsaSecurityKey(privateKey) {
+            KeyId = "my-key-id"
+        });
+
+        var signingCredentials = new SigningCredentials(singingKey, SecurityAlgorithms.RsaSha256Signature);
+        var payload = @"{""amount"":123.9,""date"":""2019-06-21T12:05:40.111Z""}";
+        var requestId = "ed67e7c4-9985-45a9-8f1c-7ce7d9c007fe";
+        var requestDate = DateTime.UtcNow;
+        var requestTarget = new HttpRequestTarget("POST", "/payment");
+        var token = new HttpSignatureSecurityToken(signingCredentials, Encoding.UTF8.GetBytes(payload), requestId, requestDate, requestTarget);
+        var digestHeader = token.Digest.ToString();
+        var signatureHeader = token.Signature.ToString();
+
+        var publicKey = X509CertificateLoader.LoadCertificate(Convert.FromBase64String(TEST_X509_PublicKey_2048));
+        var validationKey = JsonWebKeyConverter.ConvertFromX509SecurityKey(new X509SecurityKey(publicKey) {
+            KeyId = singingKey.KeyId
         });
 
         var validatedToken = new HttpSignatureSecurityToken(digestHeader, signatureHeader);
