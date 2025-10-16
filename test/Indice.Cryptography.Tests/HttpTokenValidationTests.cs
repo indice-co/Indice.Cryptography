@@ -12,7 +12,7 @@ public class HttpTokenValidationTests
     private const string ValidIssuer = "www.indice.gr";
     private const string ValidSubject = "GR-BOG-800000005";
     private const string TEST_X509_PublicKey_2048 = "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";
-    private const string TEST_RSA_PrivateKey_256 = 
+    private const string TEST_RSA_PrivateKey_256 =
         @"-----BEGIN RSA PRIVATE KEY-----
             MIIEowIBAAKCAQEAqz0wUEKPdxlYKYBQp0TyInlUPuWVH6J1MkLOn20I/gFyu387
             CDiP3wTnK4Kz382H7vfzHtPyo5WnGKN2RRZF0HXVSEIaCfcYKOsKYzh16d0x7wuJ
@@ -42,9 +42,9 @@ public class HttpTokenValidationTests
             -----END RSA PRIVATE KEY-----";
 
     [Fact]
-    public void HttpTokenValidationTest() {
+    public void HttpTokenValidationTest_RSA() {
         var privateKey = TEST_RSA_PrivateKey_256.ReadAsRSAKey();
-        var cert = new X509Certificate2(Convert.FromBase64String(TEST_X509_PublicKey_2048));
+        var cert = X509CertificateLoader.LoadCertificate(Convert.FromBase64String(TEST_X509_PublicKey_2048));
         var securityKey = new RsaSecurityKey(privateKey) {
             KeyId = cert.GetSubjectKeyIdentifier()
         };
@@ -57,6 +57,43 @@ public class HttpTokenValidationTests
         var digestHeader = token.Digest.ToString();
         var signatureHeader = token.Signature.ToString();
         var validationKey = new X509SecurityKey(cert);
+        var validatedToken = new HttpSignatureSecurityToken(digestHeader, signatureHeader);
+        var disgestIsValid = validatedToken.Digest.Validate(Encoding.UTF8.GetBytes(payload));
+        var signatureIsValid = validatedToken.Signature.Validate(validationKey, digestHeader, requestId, requestDate, requestTarget);
+        Assert.True(disgestIsValid);
+        Assert.True(signatureIsValid);
+    }
+
+    [Fact]
+    public void HttpTokenValidationTest_HMAC() {
+        // System.ArgumentOutOfRangeException: 'IDX10720: Unable to create KeyedHashAlgorithm for algorithm
+        // 'http://www.w3.org/2001/04/xmldsig-more#hmac-sha256', the key size must be greater than: '256' bits,
+        // key has '160' bits. (Parameter 'keyBytes')'
+
+        // for the above reason, we are setting a GUID as key 
+        var privateKey = "379af4ab-d390-410a-8da1-802d85d59eb5";
+
+        /* hack for keys < 256bits
+        var keyBytes = Encoding.UTF8.GetBytes("this is my key id");
+        var hashBytes = System.Security.Cryptography.SHA256.HashData(keyBytes); 
+        */
+
+        var securityKey = JsonWebKeyConverter.ConvertFromSymmetricSecurityKey(
+            new SymmetricSecurityKey(Encoding.UTF8.GetBytes(privateKey)) {
+                KeyId = "my-symmetric-key-id"
+            }
+        );
+
+        var signingCredentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
+        var payload = @"{""amount"":123.9,""date"":""2019-06-21T12:05:40.111Z""}";
+        var requestId = "ed67e7c4-9985-45a9-8f1c-7ce7d9c007fe";
+        var requestDate = DateTime.UtcNow;
+        var requestTarget = new HttpRequestTarget("POST", "/payment");
+        var token = new HttpSignatureSecurityToken(signingCredentials, Encoding.UTF8.GetBytes(payload), requestId, requestDate, requestTarget);
+        var digestHeader = token.Digest.ToString();
+        var signatureHeader = token.Signature.ToString();
+
+        var validationKey = securityKey; // this is symmetric
         var validatedToken = new HttpSignatureSecurityToken(digestHeader, signatureHeader);
         var disgestIsValid = validatedToken.Digest.Validate(Encoding.UTF8.GetBytes(payload));
         var signatureIsValid = validatedToken.Signature.Validate(validationKey, digestHeader, requestId, requestDate, requestTarget);

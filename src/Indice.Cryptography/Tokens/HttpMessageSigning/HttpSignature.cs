@@ -85,6 +85,8 @@ public class HttpSignature : Dictionary<string, object?>
                 this[HttpSignatureParameterNames.Signature] = Convert.ToBase64String(HashAndSignBytes(Encoding.UTF8.GetBytes(message), rsaKey.Parameters, hashingAlgorithm)!);
             } else if (signingCredentials.Key is X509SecurityKey x509Key) {
                 this[HttpSignatureParameterNames.Signature] = Convert.ToBase64String(HashAndSignBytes(Encoding.UTF8.GetBytes(message), (RSACng)x509Key.PrivateKey, hashingAlgorithm)!);
+            } else if (signingCredentials.Key is JsonWebKey securityKey && Algorithm.Contains("hmac-sha")) {
+                this[HttpSignatureParameterNames.Signature] = Convert.ToBase64String(HashAndSignBytes(Encoding.UTF8.GetBytes(message), securityKey, Algorithm)!);
             }
             Headers = new HashSet<string>(headerKeyValuesToSign.Where(x => x.Value != null).Select(x => x.Key.ToLowerInvariant()));
             if (headerKeyValuesToSign.TryGetValue(HeaderFieldNames.Created, out var value)) {
@@ -105,6 +107,26 @@ public class HttpSignature : Dictionary<string, object?>
         try {
             // Hash and sign the data. Pass a new instance of SHA1CryptoServiceProvider to specify the use of SHA1 for hashing.
             return RSAalg.SignData(DataToSign, hashAlgorithm, RSASignaturePadding.Pkcs1);
+        } catch (CryptographicException e) {
+            Console.WriteLine(e.Message);
+            return null;
+        }
+    }
+
+    private static byte[]? HashAndSignBytes(byte[] DataToSign, JsonWebKey jwk, string hmacAlgorithm) {        
+        if (string.IsNullOrEmpty(jwk.K)) {
+            throw new ArgumentException("JWK does not contain the 'k' parameter");
+        }
+
+        try {
+            var key = Base64UrlEncoder.DecodeBytes(jwk.K);
+            using HMAC hmac = hmacAlgorithm switch {
+                "hmac-sha256" => new HMACSHA256(key),
+                "hmac-sha384" => new HMACSHA384(key),
+                "hmac-sha512" => new HMACSHA512(key),
+                _ => throw new NotSupportedException($"Unsupported algorithm: {hmacAlgorithm}")
+            };
+            return hmac.ComputeHash(DataToSign);
         } catch (CryptographicException e) {
             Console.WriteLine(e.Message);
             return null;
@@ -360,6 +382,10 @@ public class HttpSignature : Dictionary<string, object?>
     /// <param name="key">The public key</param>
     /// <param name="headers"></param>
     public bool Validate(SecurityKey key, IDictionary<string, string?> headers) {
+        if (!key.IsSupportedAlgorithm(InboundAlgorithmMap[Algorithm!])) {
+            return false;
+        }
+
         var cryptoProviderFactory = key.CryptoProviderFactory;
         var signatureProvider = cryptoProviderFactory.CreateForVerifying(key, InboundAlgorithmMap[Algorithm!]);
         try {

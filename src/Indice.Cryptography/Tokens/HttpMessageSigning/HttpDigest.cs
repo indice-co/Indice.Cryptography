@@ -31,6 +31,12 @@ public class HttpDigest
         [SecurityAlgorithms.RsaSha384Signature] = "sha-384",
         [SecurityAlgorithms.RsaSha512] = "sha-512",
         [SecurityAlgorithms.RsaSha512Signature] = "sha-512",
+        [SecurityAlgorithms.HmacSha256Signature] = "sha-256",
+        [SecurityAlgorithms.HmacSha256] = "sha-256",
+        [SecurityAlgorithms.HmacSha384Signature] = "sha-384",
+        [SecurityAlgorithms.HmacSha384] = "sha-384",
+        [SecurityAlgorithms.HmacSha512Signature] = "sha-512",
+        [SecurityAlgorithms.HmacSha512] = "sha-512"
     };
     /// <summary>
     /// provides a mapping for the 'algorithm' value so that values are within the Http Signature namespace.
