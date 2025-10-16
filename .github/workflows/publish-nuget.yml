@@ -16,11 +16,11 @@ jobs:
       - name: Restores the dependencies
         run: dotnet restore
 
-      - name: Run the tests
-        run: dotnet test
-
       - name: Build the project
         run: dotnet build
+
+      - name: Run the tests
+        run: dotnet test
       
       - name: Pack project
         run: dotnet pack
