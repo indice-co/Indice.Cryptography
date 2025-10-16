@@ -9,7 +9,7 @@ namespace Indice.Cryptography.Tokens.HttpMessageSigning;
 /// <summary>
 /// Http Instance digest. Used in a <see cref="HttpSignatureSecurityToken"/> https://tools.ietf.org/html/rfc3230
 /// </summary>
-public class HttpDigest
+public sealed class HttpDigest
 {
     /// <summary>
     /// The header name for this part.
@@ -19,7 +19,7 @@ public class HttpDigest
     /// <summary>
     /// provides a mapping for the 'algorithm' value so that values are within the Http Signature namespace.
     /// </summary>
-    private readonly IDictionary<string, string> OutboundAlgorithmMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) {
+    private static readonly IDictionary<string, string> OutboundAlgorithmMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) {
         [HashAlgorithmName.MD5.Name!] = "md5",
         [HashAlgorithmName.SHA1.Name!] = "sha-1",
         [HashAlgorithmName.SHA256.Name!] = "sha-256",
@@ -38,10 +38,11 @@ public class HttpDigest
         [SecurityAlgorithms.HmacSha512Signature] = "sha-512",
         [SecurityAlgorithms.HmacSha512] = "sha-512"
     };
+
     /// <summary>
     /// provides a mapping for the 'algorithm' value so that values are within the Http Signature namespace.
     /// </summary>
-    private readonly IDictionary<string, HashAlgorithmName> InboundAlgorithmMap = new Dictionary<string, HashAlgorithmName>(StringComparer.OrdinalIgnoreCase) {
+    private static readonly IDictionary<string, HashAlgorithmName> InboundAlgorithmMap = new Dictionary<string, HashAlgorithmName>(StringComparer.OrdinalIgnoreCase) {
         ["md5"] = HashAlgorithmName.MD5,
         ["sha-1"] = HashAlgorithmName.SHA1,
         ["sha-256"] = HashAlgorithmName.SHA256,

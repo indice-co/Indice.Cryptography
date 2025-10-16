@@ -67,7 +67,7 @@ public static class OpenApiExtensions
             array = new OpenApiArray();
             array.AddRange(((IEnumerable)instance).Cast<object>().Select(x => GetStructValue(itemType ?? x.GetType(), x) ?? ToOpenApiAny(itemType ?? x.GetType(), x)));
         }
-        return array;
+        return array!;
     }
 
     private static IOpenApiPrimitive GetStructValue(Type type, object value) {
@@ -104,18 +104,18 @@ public static class OpenApiExtensions
             type.IsEnum || Nullable.GetUnderlyingType(type)?.IsEnum == true) {
 #endif
             openValue = new OpenApiString($"{value}");
-        } else if (type.IsValueType && !type.IsPrimitive && !type.Namespace.StartsWith("System") && !type.IsEnum) {
+        } else if (type.IsValueType && !type.IsPrimitive && !type.Namespace!.StartsWith("System") && !type.IsEnum) {
             openValue = new OpenApiString($"{value}");
         }
 
-        return openValue;
+        return openValue!;
     }
 
     private static Type GetAnyElementType(Type type) {
         // Type is Array
         // short-circuit if you expect lots of arrays 
         if (type.IsArray)
-            return type.GetElementType();
+            return type.GetElementType()!;
 
         // type is IEnumerable<T>;
         if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(IEnumerable<>))
@@ -126,6 +126,6 @@ public static class OpenApiExtensions
                                 .Where(t => t.IsGenericType &&
                                        t.GetGenericTypeDefinition() == typeof(IEnumerable<>))
                                 .Select(t => t.GenericTypeArguments[0]).FirstOrDefault();
-        return enumType;
+        return enumType!;
     }
 }

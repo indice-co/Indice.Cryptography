@@ -183,7 +183,7 @@ public class HttpTokenIntegrationTests
         var server = _host.GetTestServer();
         var messageHandler = new HttpSignatureDelegatingHandler(
             credential: GetSigningCredentials(),
-            headerNames: new[] { "(request-target)", "(created)", "digest", "x-request-id" },
+            headerNames: ["(request-target)", "(created)", "digest", "x-request-id"],
             innerHandler: server.CreateHandler()
         );
         messageHandler.IgnoreResponseValidation = true;
@@ -199,7 +199,7 @@ public class HttpTokenIntegrationTests
 
     private static SigningCredentials GetSigningCredentials() {
         var privateKey = TEST_RSA_PrivateKey_256.ReadAsRSAKey();
-        var cert = new X509Certificate2(Convert.FromBase64String(TEST_X509_PublicKey_2048));
+        var cert = X509CertificateLoader.LoadCertificate(Convert.FromBase64String(TEST_X509_PublicKey_2048));
         var rsa = RSA.Create(privateKey);
         var signingCredentials = new SigningCredentials(new X509SecurityKey(cert.CopyWithPrivateKey(rsa)), SecurityAlgorithms.RsaSha256Signature);
         return signingCredentials;

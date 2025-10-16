@@ -72,7 +72,7 @@ public class HttpSignatureOptions
     /// <param name="pathString">The path to exclude.</param>
     /// <param name="httpMethods">The HTTP methods to exclude for the given path.</param>
     public HttpSignatureOptions IgnorePath(PathString pathString, params string[] httpMethods) {
-        if (pathString == null) {
+        if (!pathString.HasValue) {
             throw new ArgumentNullException(nameof(pathString), "Cannot ignore a null path.");
         }
         var path = pathString.Value.EnsureLeadingSlash().ToTemplatedDynamicPath();
@@ -83,7 +83,7 @@ public class HttpSignatureOptions
         }
         // Validate HTTP method.
         // There are more of course, but this seems enough for our needs.
-        foreach (var method in httpMethods) {
+        foreach (var method in httpMethods!) {
             var isValidHttpMethod = HttpMethods.IsGet(method) || HttpMethods.IsPost(method) || HttpMethods.IsPut(method) || HttpMethods.IsDelete(method) || HttpMethods.IsPatch(method);
             if (!isValidHttpMethod) {
                 throw new ArgumentException($"HTTP method {method} is not valid.");
@@ -105,7 +105,7 @@ public class HttpSignatureOptions
     /// <param name="httpMethod">The HTTP method of the specified path.</param>
     /// <param name="headerNames">The headers to be included in the signature for this path.</param>
     public bool TryMatch(PathString path, string httpMethod, out List<string> headerNames) {
-        headerNames = null;
+        headerNames = null!;
         if (Mappings.ContainsKey(path)) {
             headerNames = Mappings[path];
             return !StringExtensions.IsIgnoredPath(IgnoredPaths, path, httpMethod);

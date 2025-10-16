@@ -1,6 +1,7 @@
 ﻿using System;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Indice.Cryptography.AspNetCore.Middleware;
 
@@ -14,11 +15,11 @@ public static class HttpContextExtensions
     /// </summary>
     /// <param name="httpContext">Encapsulates all HTTP-specific information about an individual HTTP request.</param>
     public static string GetPathAndQuery(this HttpContext httpContext) {
-        var requestFeature = httpContext.Features.Get<IHttpRequestFeature>();
-        var options = (HttpSignatureOptions)httpContext.RequestServices.GetService(typeof(HttpSignatureOptions));
+        var requestFeature = httpContext.Features.GetRequiredFeature<IHttpRequestFeature>();
+        var options = (HttpSignatureOptions)httpContext.RequestServices.GetRequiredService(typeof(HttpSignatureOptions));
         var forwardedPath = httpContext.Request.Headers[options.ForwardedPathHeaderName];
         if (!string.IsNullOrWhiteSpace(forwardedPath)) {
-            return forwardedPath;
+            return forwardedPath!;
         }
         var uri = new Uri($"http://localhost{httpContext.Request.Path}{requestFeature.QueryString}", UriKind.Absolute);
         return uri.PathAndQuery;

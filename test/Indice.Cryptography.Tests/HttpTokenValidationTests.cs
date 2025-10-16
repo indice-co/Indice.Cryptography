@@ -65,21 +65,10 @@ public class HttpTokenValidationTests
     }
 
     [Fact]
-    public void HttpTokenValidationTest_HMAC() {
-        // System.ArgumentOutOfRangeException: 'IDX10720: Unable to create KeyedHashAlgorithm for algorithm
-        // 'http://www.w3.org/2001/04/xmldsig-more#hmac-sha256', the key size must be greater than: '256' bits,
-        // key has '160' bits. (Parameter 'keyBytes')'
-
-        // for the above reason, we are setting a GUID as key 
-        var privateKey = "379af4ab-d390-410a-8da1-802d85d59eb5";
-
-        /* hack for keys < 256bits
-        var keyBytes = Encoding.UTF8.GetBytes("this is my key id");
-        var hashBytes = System.Security.Cryptography.SHA256.HashData(keyBytes); 
-        */
-
+    public void HttpTokenValidationTest_HMAC() {              
+        var secret = "simple-key";
         var securityKey = JsonWebKeyConverter.ConvertFromSymmetricSecurityKey(
-            new SymmetricSecurityKey(Encoding.UTF8.GetBytes(privateKey)) {
+            new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret)) {
                 KeyId = "my-symmetric-key-id"
             }
         );

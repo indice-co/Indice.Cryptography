@@ -2,6 +2,7 @@
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using Indice.Cryptography.AspNetCore.Middleware;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.IdentityModel.Tokens;
 
 namespace Microsoft.Extensions.DependencyInjection;
@@ -28,7 +29,7 @@ public static class HttpSignatureConfiguration
             services.AddSingleton(options);
             builder.Options = options;
         }
-        builder.Services.AddSingleton<IHttpClientValidationKeysStore, DefaultHttpClientValidationKeysStore>();
+        builder.Services.TryAddSingleton<IHttpClientValidationKeysStore, DefaultHttpClientValidationKeysStore>();
         return builder;
     }
 

@@ -36,9 +36,9 @@ internal class CertificatesBackgroudService : BackgroundService
         var issuingCert = manager.CreateRootCACertificate(options.IssuerDomain);
         var certBase64 = issuingCert.ExportToPEM();
         var pfxBytes = issuingCert.Export(X509ContentType.Pfx, options.PfxPassphrase);
-        File.WriteAllBytes(Path.Combine(options.Path, "ca.pfx"), pfxBytes);
-        File.WriteAllText(Path.Combine(options.Path, "ca.cer"), certBase64);
-        var store = scope.ServiceProvider.GetService<ICertificatesStore>();
+        File.WriteAllBytes(Path.Combine(options.Path!, "ca.pfx"), pfxBytes);
+        File.WriteAllText(Path.Combine(options.Path!, "ca.cer"), certBase64);
+        var store = scope.ServiceProvider.GetRequiredService<ICertificatesStore>();
         await store.Add(issuingCert, null!);
     }
 
@@ -46,5 +46,4 @@ internal class CertificatesBackgroudService : BackgroundService
         _logger.LogInformation("Bootstrapping Certificates ended.");
         await base.StopAsync(stoppingToken);
     }
-
 }

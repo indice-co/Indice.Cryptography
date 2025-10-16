@@ -14,7 +14,7 @@ internal class CertificatesStoreInMemory : ICertificatesStore
         throw new NotImplementedException();
     }
 
-    public Task<List<CertificateDetails>> GetList(DateTimeOffset? notBefore = null, bool? revoked = null, string authorityKeyId = null) {
+    public Task<List<CertificateDetails>> GetList(DateTimeOffset? notBefore = null, bool? revoked = null, string? authorityKeyId = null) {
         throw new NotImplementedException();
     }
 
