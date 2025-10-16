@@ -1,5 +1,5 @@
+[![Nuget](https://img.shields.io/nuget/vpre/Indice.Cryptography?logo=nuget)](https://www.nuget.org/packages/Indice.Cryptography/)
 # Indice.Cryptography  ![alt text](icon/icon-64.png "Indice logo")
-
 A comprehensive .NET cryptography library focused on PSD2 compliance, X.509 certificate management, and HTTP message signing.
 
 ## Features
