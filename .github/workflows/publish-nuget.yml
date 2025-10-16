@@ -1,7 +1,9 @@
 name: Publish NuGet
 
 on: 
-   workflow_dispatch:
+   push:
+      branches:
+         - publish-nuget
 
 jobs:
   publish:
