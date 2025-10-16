@@ -1,0 +1,24 @@
+name: Publish NuGet
+
+on: 
+   workflow_dispatch:
+
+jobs:
+  publish:
+      runs-on: ubuntu-latest
+
+      steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Restores the dependencies
+        run: dotnet restore
+
+      - name: Run the tests
+        run: dotnet test
+
+      - name: Build the project
+        run: dotnet build
+      
+      - name: Pack project
+        run: dotnet pack
