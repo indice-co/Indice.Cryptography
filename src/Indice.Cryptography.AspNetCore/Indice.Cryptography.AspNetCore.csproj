@@ -2,7 +2,11 @@
   <PropertyGroup Label="Package">
     <PackageTags>Psd2;OBA;FAPI;Extensions</PackageTags>
     <PackageReleaseNotes>Expose header name.</PackageReleaseNotes>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\"/>
+  </ItemGroup>
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
