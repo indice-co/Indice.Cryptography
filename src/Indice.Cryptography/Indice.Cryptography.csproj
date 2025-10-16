@@ -3,7 +3,11 @@
     <TargetFramework>net8.0</TargetFramework>
     <PackageTags>Psd2;Cryptography;Utilities</PackageTags>
     <PackageReleaseNotes>Expose header name.</PackageReleaseNotes>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\"/>
+  </ItemGroup>
   <ItemGroup>
     <PackageReference Include="DerConverter" Version="3.0.0.82" />
     <PackageReference Include="PemUtils" Version="3.0.0.82" />

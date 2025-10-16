@@ -1,4 +1,4 @@
-# Indice.Cryptography  ![alt text](icon/icon-64.png "Indice logo")
+# Indice.Cryptography
 
 A comprehensive .NET cryptography library focused on PSD2 compliance, X.509 certificate management, and HTTP message signing.
 
