@@ -16,10 +16,10 @@
       <PackageTags></PackageTags>
       <IsPackable>true</IsPackable>
       <PackageIcon>icon-310.png</PackageIcon>
-      <PackageProjectUrl>https://github.com/indice-co/Indice.Psd2</PackageProjectUrl>
+      <PackageProjectUrl>https://github.com/indice-co/Indice.Cryptography</PackageProjectUrl>
       <PackageLicenseExpression>MIT</PackageLicenseExpression>
       <RepositoryType>git</RepositoryType>
-      <RepositoryUrl>https://github.com/indice-co/Indice.Psd2</RepositoryUrl>
+      <RepositoryUrl>https://github.com/indice-co/Indice.Cryptography</RepositoryUrl>
       <Company>Indice</Company>
       <!--<GeneratePackageOnBuild>true</GeneratePackageOnBuild>-->
       <!-- Optional: Publish the repository URL in the built .nupkg (in the NuSpec <Repository> element) -->
