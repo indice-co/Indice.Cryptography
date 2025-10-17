@@ -1,0 +1,43 @@
+name: Publish NuGet
+
+on: 
+  #  workflow_dispatch:
+   push:
+      branches:
+         - publish-nuget
+
+jobs:
+  publish:
+      runs-on: windows-latest
+
+      steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Read global json
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: ${{ github.workspace }}/global.json
+
+      - name: Restores the dependencies
+        run: dotnet restore
+ 
+      - name: Build the projects
+        run: dotnet build
+
+      - name: Build the project Indice.IdentityServer.Psd2.csproj for net8.0;net9.0
+        run: | 
+              dotnet build src/Indice.IdentityServer.Psd2/Indice.IdentityServer.Psd2.csproj -c Release -f net8.0
+              dotnet build src/Indice.IdentityServer.Psd2/Indice.IdentityServer.Psd2.csproj -c Release -f net9.0
+
+      - name: Run the tests
+        run: dotnet test
+      
+      - name: Pack project
+        run: dotnet pack
+
+      # - name: Generate NuGet package
+      #   run: ./pack.ps1
+
+      # - name: Push to NuGet.org
+      #   run: dotnet nuget push "./artifacts/Indice*.nupkg" --api-key ${{ secrets.NUGET_API_KEY }}
