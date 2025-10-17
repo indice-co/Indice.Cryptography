@@ -26,7 +26,7 @@ jobs:
         run: dotnet build
 
       - name: Build the project Indice.IdentityServer.Psd2.csproj for net8.0;net9.0
-        run: dotnet build src/Indice.IdentityServer.Psd2/Indice.IdentityServer.Psd2.csproj -c Release -f
+        run: dotnet build src/Indice.IdentityServer.Psd2/Indice.IdentityServer.Psd2.csproj -c Release
 
       - name: Run the tests
         run: dotnet test
