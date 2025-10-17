@@ -21,9 +21,12 @@ jobs:
 
       - name: Restores the dependencies
         run: dotnet restore
-
-      - name: Build the project
+ 
+      - name: Build the projects
         run: dotnet build
+
+      - name: Build the project Indice.IdentityServer.Psd2.csproj for net8.0;net9.0
+        run: dotnet build src/Indice.IdentityServer.Psd2/Indice.IdentityServer.Psd2.csproj -c Release -f
 
       - name: Run the tests
         run: dotnet test
