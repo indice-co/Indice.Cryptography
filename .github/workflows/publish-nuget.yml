@@ -1,6 +1,7 @@
 name: Publish NuGet
 
 on: 
+  #  workflow_dispatch:
    push:
       branches:
          - publish-nuget
@@ -13,6 +14,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Read global json
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: ${{ github.workspace }}/global.json
+
       - name: Restores the dependencies
         run: dotnet restore
 
@@ -24,3 +30,9 @@ jobs:
       
       - name: Pack project
         run: dotnet pack
+
+      # - name: Generate NuGet package
+      #   run: ./pack.ps1
+
+      # - name: Push to NuGet.org
+      #   run: dotnet nuget push "./artifacts/Indice*.nupkg" --api-key ${{ secrets.NUGET_API_KEY }}
