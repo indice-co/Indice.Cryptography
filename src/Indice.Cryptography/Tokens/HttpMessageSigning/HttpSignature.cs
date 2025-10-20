@@ -4,7 +4,6 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using Microsoft.IdentityModel.Tokens;
 
@@ -86,17 +85,7 @@ public sealed class HttpSignature : Dictionary<string, object?>
             headerKeyValuesToSign ??= new Dictionary<string, string?>();
             var message = GenerateMessage(headerKeyValuesToSign);
             var hashingAlgorithm = HashAlgorithmMap[Algorithm];
-            if (signingCredentials is X509SigningCredentials x509SigningCredentials) {
-                using (var key = x509SigningCredentials.Certificate.GetRSAPrivateKey()!) {
-                    this[HttpSignatureParameterNames.Signature] = Convert.ToBase64String(key.SignData(Encoding.UTF8.GetBytes(message), hashingAlgorithm, RSASignaturePadding.Pkcs1));
-                }
-            } else if (signingCredentials.Key is RsaSecurityKey rsaKey) {
-                this[HttpSignatureParameterNames.Signature] = Convert.ToBase64String(HashAndSignBytes(Encoding.UTF8.GetBytes(message), rsaKey.Parameters, hashingAlgorithm)!);
-            } else if (signingCredentials.Key is X509SecurityKey x509Key) {
-                this[HttpSignatureParameterNames.Signature] = Convert.ToBase64String(HashAndSignBytes(Encoding.UTF8.GetBytes(message), (RSACng)x509Key.PrivateKey, hashingAlgorithm)!);
-            } else if (signingCredentials.Key is JsonWebKey securityKey) {
-                this[HttpSignatureParameterNames.Signature] = Convert.ToBase64String(HashAndSignBytes(Encoding.UTF8.GetBytes(message), securityKey, Algorithm, hashingAlgorithm)!);
-            }
+            this[HttpSignatureParameterNames.Signature] = Convert.ToBase64String(HashAndSignBytes(Encoding.UTF8.GetBytes(message), signingCredentials.Key)!);
             Headers = new HashSet<string>(headerKeyValuesToSign.Where(x => x.Value != null).Select(x => x.Key.ToLowerInvariant()));
             if (headerKeyValuesToSign.TryGetValue(HeaderFieldNames.Created, out var value)) {
                 Created = GetDate(value);
@@ -111,58 +100,35 @@ public sealed class HttpSignature : Dictionary<string, object?>
         SigningCredentials = signingCredentials;
     }
 
-    private static byte[]? HashAndSignBytes(byte[] DataToSign, RSACng RSAalg, HashAlgorithmName hashAlgorithm) {
-        // Create a new instance of RSACryptoServiceProvider using the key from RSAParameters.  
+    private byte[]? HashAndSignBytes(byte[] DataToSign, SecurityKey securityKey) {
+        if (!securityKey.IsSupportedAlgorithm(InboundAlgorithmMap[Algorithm!])) {
+            return null;
+        }
+
+        // This section exist to enforce the proper key length of the symmetric key.
+        // If this code block is removed, then the signee must ensure for the proper key length, according to the algorithm.
+        if (securityKey is JsonWebKey { Kty: JsonWebAlgorithmsKeyTypes.Octet } jwk) {
+            var symmetricKey = Base64UrlEncoder.DecodeBytes(jwk.K);
+            securityKey = new JsonWebKey {
+                Kty = JsonWebAlgorithmsKeyTypes.Octet,
+                KeyId = jwk.KeyId,
+                K = Algorithm switch {
+                    "hmac-sha256" => Base64UrlEncoder.Encode(SHA256.HashData(symmetricKey)),
+                    "hmac-sha384" => Base64UrlEncoder.Encode(SHA384.HashData(symmetricKey)),
+                    "hmac-sha512" => Base64UrlEncoder.Encode(SHA512.HashData(symmetricKey)),
+                    _ => throw new NotSupportedException($"Unsupported algorithm: {Algorithm}")
+                }
+            };
+        }
+
+        var cryptoProviderFactory = securityKey.CryptoProviderFactory;
+        var signatureProvider = cryptoProviderFactory.CreateForSigning(securityKey, InboundAlgorithmMap[Algorithm!]);
+
         try {
-            // Hash and sign the data. Pass a new instance of SHA1CryptoServiceProvider to specify the use of SHA1 for hashing.
-            return RSAalg.SignData(DataToSign, hashAlgorithm, RSASignaturePadding.Pkcs1);
+            return signatureProvider.Sign(DataToSign);
         } catch (CryptographicException e) {
             Console.WriteLine(e.Message);
             return null;
-        }
-    }
-
-    private static byte[]? HashAndSignBytes(byte[] DataToSign, JsonWebKey jwk, string signingAlgorithm, HashAlgorithmName keyAlgorithm) {
-        if (string.IsNullOrEmpty(jwk.K)) {
-            throw new ArgumentException("JWK does not contain the 'k' parameter");
-        }
-
-        try {
-            var secret = Base64UrlEncoder.DecodeBytes(jwk.K);
-            var key = keyAlgorithm.Name switch {
-                nameof(HashAlgorithmName.SHA256) => SHA256.HashData(secret),
-                nameof(HashAlgorithmName.SHA384) => SHA384.HashData(secret),
-                nameof(HashAlgorithmName.SHA512) => SHA512.HashData(secret),
-                _ => throw new NotSupportedException($"Unsupported algorithm: {signingAlgorithm}")
-            };
-
-            using HMAC hmac = signingAlgorithm switch {
-                "hmac-sha256" => new HMACSHA256(key),
-                "hmac-sha384" => new HMACSHA384(key),
-                "hmac-sha512" => new HMACSHA512(key),
-                _ => throw new NotSupportedException($"Unsupported algorithm: {signingAlgorithm}")
-            };
-            return hmac.ComputeHash(DataToSign);
-        } catch (CryptographicException e) {
-            Console.WriteLine(e.Message);
-            return null;
-        }
-    }
-
-    private static byte[]? HashAndSignBytes(byte[] DataToSign, RSAParameters Key, HashAlgorithmName hashAlgorithm) {
-        // Create a new instance of RSACryptoServiceProvider using the key from RSAParameters.  
-        using (var RSAalg = new RSACryptoServiceProvider()) {
-            try {
-                RSAalg.ImportParameters(Key);
-                // Hash and sign the data. Pass a new instance of SHA1CryptoServiceProvider to specify the use of SHA1 for hashing.
-                return RSAalg.SignData(DataToSign, hashAlgorithm, RSASignaturePadding.Pkcs1);
-            } catch (CryptographicException e) {
-                Console.WriteLine(e.Message);
-                return null;
-            } finally {
-                // Set the key container to be cleared when RSA is garbage collected.
-                RSAalg.PersistKeyInCsp = false;
-            }
         }
     }
 
@@ -402,12 +368,19 @@ public sealed class HttpSignature : Dictionary<string, object?>
             return false;
         }
 
-        if (key is JsonWebKey jwk) {
-            jwk.K = Algorithm switch {
-                "hmac-sha256" => Base64UrlEncoder.Encode(SHA256.HashData(Base64UrlEncoder.DecodeBytes(jwk.K))),
-                "hmac-sha384" => Base64UrlEncoder.Encode(SHA384.HashData(Base64UrlEncoder.DecodeBytes(jwk.K))),
-                "hmac-sha512" => Base64UrlEncoder.Encode(SHA512.HashData(Base64UrlEncoder.DecodeBytes(jwk.K))),
-                _ => throw new NotSupportedException($"Unsupported algorithm: {Algorithm}")
+        // This section exist to enforce the proper key length of the symmetric key.
+        // If this code block is removed, then the caller must ensure for the proper key length, according to the algorithm.
+        if (key is JsonWebKey { Kty: JsonWebAlgorithmsKeyTypes.Octet } jwk) {
+            var symmetricKey = Base64UrlEncoder.DecodeBytes(jwk.K);
+            key = new JsonWebKey {
+                Kty = JsonWebAlgorithmsKeyTypes.Octet,
+                KeyId = jwk.KeyId,
+                K = Algorithm switch {
+                    "hmac-sha256" => Base64UrlEncoder.Encode(SHA256.HashData(symmetricKey)),
+                    "hmac-sha384" => Base64UrlEncoder.Encode(SHA384.HashData(symmetricKey)),
+                    "hmac-sha512" => Base64UrlEncoder.Encode(SHA512.HashData(symmetricKey)),
+                    _ => throw new NotSupportedException($"Unsupported algorithm: {Algorithm}")
+                }
             };
         }
 
