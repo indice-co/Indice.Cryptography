@@ -1,11 +1,9 @@
 name: Publish NuGet
 
 on: 
-  #  workflow_dispatch:
-   push:
-      branches:
-         - publish-nuget
+  workflow_dispatch:
 
+  
 jobs:
   publish:
       runs-on: windows-latest
@@ -29,9 +27,7 @@ jobs:
         run: dotnet test
       
       - name: Pack project
-        run: |
-             dotnet pack -c Release --output packages
-             ls packages
+        run: dotnet pack -c Release --output packages
 
-      # - name: Push to NuGet.org
-      #   run: dotnet nuget push "./artifacts/Indice*.nupkg" --api-key ${{ secrets.NUGET_AUTH_TOKEN }}
+      - name: Push to NuGet.org
+        run: dotnet nuget push "./packages/Indice*.nupkg" --api-key ${{ secrets.NUGET_AUTH_TOKEN }}
