@@ -31,7 +31,7 @@ jobs:
       - name: Pack project
         run: |
              dotnet pack -c Release --output packages
-             ls -la packages
+             ls packages
 
       # - name: Push to NuGet.org
       #   run: dotnet nuget push "./artifacts/Indice*.nupkg" --api-key ${{ secrets.NUGET_AUTH_TOKEN }}
