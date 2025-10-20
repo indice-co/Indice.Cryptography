@@ -1,0 +1,32 @@
+name: Publish NuGet
+
+on:
+  workflow_dispatch:
+
+jobs:
+  publish:
+      runs-on: windows-latest
+
+      steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Read global json
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: ${{ github.workspace }}/global.json
+
+      - name: Restores the dependencies
+        run: dotnet restore
+ 
+      - name: Build the projects
+        run: dotnet build -c Release
+
+      - name: Run the tests
+        run: dotnet test
+      
+      - name: Pack project
+        run: dotnet pack -c Release --output packages
+
+      - name: Push to NuGet.org
+        run: dotnet nuget push "./packages/Indice*.nupkg" --api-key ${{ secrets.NUGET_AUTH_TOKEN }} --skip-duplicate
