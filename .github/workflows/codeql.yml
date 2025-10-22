@@ -1,12 +1,14 @@
 name: Branch Protection
 
 on:
-  pull_request:
-    branches:
-      - master
+  push:
+  # pull_request:
+  #   branches:
+  #     - master
 
 jobs:
   build-code:
+    name: Build Code
     runs-on: windows-latest
     steps:
       - name: Checkout repository
@@ -24,6 +26,7 @@ jobs:
         run: dotnet build -c Release
 
   run-tests:
+    name: Test code
     needs: build-code
     runs-on: windows-latest
     steps:
@@ -37,3 +40,25 @@ jobs:
     
       - name: Run tests
         run: dotnet test -c Release
+
+  run-codeql-csharp:
+    name: Codeql analyze C#
+    needs: [build-code]   
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Read global json
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: ${{ github.workspace }}/global.json
+      
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v1
+      
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v1
+        
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v1  
