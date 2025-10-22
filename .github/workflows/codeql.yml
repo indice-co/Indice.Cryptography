@@ -39,7 +39,7 @@ jobs:
           global-json-file: ${{ github.workspace }}/global.json
     
       - name: Run tests
-        run: dotnet test -c Release Indice.Platform.slnx --no-build --configuration Release --logger trx --results-directory "TestResults"
+        run: dotnet test -c Release --configuration Release --logger trx --results-directory "TestResults"
 
       - name: Test Reporter
         uses: dorny/test-reporter@v2
@@ -65,8 +65,8 @@ jobs:
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
       
-      # - name: Autobuild
-      #   uses: github/codeql-action/autobuild@v3
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
