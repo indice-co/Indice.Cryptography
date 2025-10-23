@@ -1,0 +1,85 @@
+name: Branch Protection
+
+on:
+  # push:
+  pull_request:
+    branches:
+      - master
+
+permissions:  
+  contents: read
+
+jobs:
+  build-code:
+    name: Build Code
+    runs-on: windows-latest
+    permissions:  
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Read global json
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: ${{ github.workspace }}/global.json
+
+      - name: Restore dependencies
+        run: dotnet restore
+     
+      - name: Build the projects
+        run: dotnet build -c Release
+
+  run-tests:
+    name: Test code
+    needs: build-code
+    runs-on: windows-latest
+    permissions:  
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Read global json
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: ${{ github.workspace }}/global.json
+    
+      - name: Run tests
+        run: dotnet test --configuration Release --logger trx --results-directory "TestResults"
+
+      - name: Test Reporter
+        uses: dorny/test-reporter@v2
+        with:
+          name: DotNET Tests
+          path: "TestResults/*.trx"
+          reporter: dotnet-trx
+          fail-on-error: true
+
+  run-codeql-csharp:
+    name: Codeql analyze C#
+    needs: [build-code]   
+    runs-on: windows-latest
+    permissions:  
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Read global json
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: ${{ github.workspace }}/global.json
+      
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: csharp
+          config-file: ./.github/workflows/codeql/codeql-config.yml
+      
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3

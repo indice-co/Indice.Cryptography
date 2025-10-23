@@ -26,7 +26,7 @@ jobs:
         run: dotnet test
       
       - name: Pack project
-        run: dotnet pack -c Release --output packages
+        run: dotnet pack -c Release --output artifacts
 
       - name: Push to NuGet.org
-        run: dotnet nuget push "./packages/Indice*.nupkg" --api-key ${{ secrets.NUGET_AUTH_TOKEN }} --skip-duplicate
+        run: dotnet nuget push "./artifacts/Indice*.nupkg" --api-key ${{ secrets.NUGET_AUTH_TOKEN }} --skip-duplicate
