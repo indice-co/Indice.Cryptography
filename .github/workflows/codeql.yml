@@ -1,18 +1,20 @@
 name: Branch Protection
 
 on:
-  # push:
-  pull_request:
-    branches:
-      - master
+  push:
+  # pull_request:
+    # branches:
+      # - master
 
-permissions:      
+permissions:  
   contents: read
 
 jobs:
   build-code:
     name: Build Code
     runs-on: windows-latest
+    permissions:  
+      contents: read
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -32,6 +34,8 @@ jobs:
     name: Test code
     needs: build-code
     runs-on: windows-latest
+    permissions:  
+      contents: read
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -56,6 +60,8 @@ jobs:
     name: Codeql analyze C#
     needs: [build-code]   
     runs-on: windows-latest
+    permissions:  
+      contents: read
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -67,6 +73,9 @@ jobs:
       
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
+        with:
+          languages: csharp
+          config-file: ./.github/workflows/codeql/codeql-config.yml
       
       - name: Autobuild
         uses: github/codeql-action/autobuild@v3
