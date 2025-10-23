@@ -1,10 +1,10 @@
 name: Branch Protection
 
 on:
-  push:
-  # pull_request:
-    # branches:
-      # - master
+  # push:
+  pull_request:
+    branches:
+      - master
 
 permissions:  
   contents: read
