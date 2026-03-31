@@ -1,12 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Formats.Asn1;
 using System.Linq;
 using System.Numerics;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
-using DerConverter;
-using DerConverter.Asn;
-using DerConverter.Asn.KnownTypes;
 
 namespace Indice.Cryptography.X509Certificates;
 
@@ -55,27 +53,7 @@ public class QualifiedCertificateStatementsExtension : X509Extension
     public QualifiedCertificateStatementsExtension(bool isCompliant, QcMonetaryValue limit, int retentionPeriod, bool isQSCD, IEnumerable<PdsLocation> pdsLocations, QcTypeIdentifiers type, Psd2Attributes psd2, bool critical) {
         Oid = new Oid(Oid_QC_Statements, "Qualified Certificate Statements");
         Critical = critical;
-        var statements = new List<DerAsnSequence>();
-        if (isCompliant) {
-            statements.Add(new QcComplianceStatement());
-        }
-        if (retentionPeriod > 0) {
-            statements.Add(new QcRetentionPeriodStatement(retentionPeriod));
-        }
-        if (limit != null) {
-            statements.Add(new QcLimitValueStatement(limit));
-        }
-        if (isQSCD) {
-            statements.Add(new QcSSCDStatement());
-        }
-        statements.Add(new QcTypeStatement(type));
-        if (pdsLocations?.Any() == true) {
-            statements.Add(new QcPdsStatement(pdsLocations));
-        }
-        if (psd2 != null) {
-            statements.Add(new Psd2QcStatement(psd2));
-        }
-        RawData = DerConvert.Encode(new DerAsnSequence(statements.ToArray())).ToArray();
+        RawData = EncodeQualifiedCertificateStatements(isCompliant, limit, retentionPeriod, isQSCD, pdsLocations, type, psd2);
         _Statements = new QualifiedCertificateStatements(isCompliant, limit, retentionPeriod, isQSCD, pdsLocations, type, psd2);
         _decoded = true;
     }
@@ -86,12 +64,10 @@ public class QualifiedCertificateStatementsExtension : X509Extension
     /// <param name="encodedExtension"></param>
     /// <param name="critical"></param>
     public QualifiedCertificateStatementsExtension(AsnEncodedData encodedExtension, bool critical) : base(encodedExtension, critical) {
-
     }
 
     private bool _decoded = false;
-
-    private QualifiedCertificateStatements _Statements;
+    private QualifiedCertificateStatements _Statements = null!;
 
     /// <summary>
     /// European Qualified Certificate Statements.
@@ -114,473 +90,445 @@ public class QualifiedCertificateStatementsExtension : X509Extension
         _decoded = false;
     }
 
-    private void DecodeExtension() {
-        _Statements = new QualifiedCertificateStatements();
-        var root = DerConvert.Decode(RawData) as DerAsnSequence;
-        if (root.Value[0] is DerAsnSequence) {
-            foreach (var sequence in root.Value.OfType<DerAsnSequence>()) {
-                if (sequence.Value[0] is DerAsnObjectIdentifier oid) {
-                    switch (oid.Value.ToOidString()) {
-                        case QcComplianceStatement.Oid_QcCompliance:
-                            _Statements.IsCompliant = new QcComplianceStatement(sequence.Value).Extract(); break;
-                        case QcLimitValueStatement.Oid_QcLimitValue:
-                            _Statements.LimitValue = new QcLimitValueStatement(sequence.Value).Extract(); break;
-                        case QcRetentionPeriodStatement.Oid_QcRetentionPeriod:
-                            _Statements.RetentionPeriod = new QcRetentionPeriodStatement(sequence.Value).Extract(); break;
-                        case QcSSCDStatement.Oid_QcSSCD:
-                            _Statements.IsQSCD = new QcSSCDStatement(sequence.Value).Extract(); break;
-                        case QcPdsStatement.Oid_QcPds:
-                            _Statements.PdsLocations = new QcPdsStatement(sequence.Value).Extract(); break;
-                        case QcTypeStatement.Oid_QcType:
-                            _Statements.Type = new QcTypeStatement(sequence.Value).Extract(); break;
-                        case Psd2QcStatement.Oid_PSD2_QcStatement:
-                            _Statements.Psd2Type = new Psd2QcStatement(sequence.Value).Extract(); break;
-                        default: break;
-                    }
+    private static byte[] EncodeQualifiedCertificateStatements(bool isCompliant, QcMonetaryValue limit, int retentionPeriod, bool isQSCD, IEnumerable<PdsLocation> pdsLocations, QcTypeIdentifiers type, Psd2Attributes psd2) {
+        var writer = new AsnWriter(AsnEncodingRules.DER);
+        writer.PushSequence(); // QCStatements
+        {
+            if (isCompliant) {
+                EncodeQcComplianceStatement(writer);
+            }
+            if (retentionPeriod > 0) {
+                EncodeQcRetentionPeriodStatement(writer, retentionPeriod);
+            }
+            if (limit != null) {
+                EncodeQcLimitValueStatement(writer, limit);
+            }
+            if (isQSCD) {
+                EncodeQcSSCDStatement(writer);
+            }
+            EncodeQcTypeStatement(writer, type);
+            if (pdsLocations?.Any() == true) {
+                EncodeQcPdsStatement(writer, pdsLocations);
+            }
+            if (psd2 != null) {
+                EncodePsd2QcStatement(writer, psd2);
+            }
+        }
+        writer.PopSequence();
 
+        return writer.Encode();
+    }
+
+    private static void EncodeQcComplianceStatement(AsnWriter writer) {
+        writer.PushSequence(); // QCStatement
+        {
+            writer.WriteObjectIdentifier(QcComplianceStatement.Oid_QcCompliance);
+        }
+        writer.PopSequence();
+    }
+
+    private static void EncodeQcRetentionPeriodStatement(AsnWriter writer, int retentionPeriod) {
+        writer.PushSequence(); // QCStatement
+        {
+            writer.WriteObjectIdentifier(QcRetentionPeriodStatement.Oid_QcRetentionPeriod);
+            writer.WriteInteger(retentionPeriod);
+        }
+        writer.PopSequence();
+    }
+
+    private static void EncodeQcLimitValueStatement(AsnWriter writer, QcMonetaryValue limit) {
+        writer.PushSequence(); // QCStatement
+        {
+            writer.WriteObjectIdentifier(QcLimitValueStatement.Oid_QcLimitValue);
+            writer.PushSequence(); // MonetaryValue
+            {
+                writer.WriteCharacterString(UniversalTagNumber.PrintableString, limit.CurrencyCode);
+                writer.WriteInteger((long)limit.Value);
+            }
+            writer.PopSequence();
+        }
+        writer.PopSequence();
+    }
+
+    private static void EncodeQcSSCDStatement(AsnWriter writer) {
+        writer.PushSequence(); // QCStatement
+        {
+            writer.WriteObjectIdentifier(QcSSCDStatement.Oid_QcSSCD);
+        }
+        writer.PopSequence();
+    }
+
+    private static void EncodeQcTypeStatement(AsnWriter writer, QcTypeIdentifiers type) {
+        writer.PushSequence(); // QCStatement
+        {
+            writer.WriteObjectIdentifier(QcTypeStatement.Oid_QcType);
+            writer.PushSequence(); // QcTypes
+            {
+                if (type.HasFlag(QcTypeIdentifiers.eSign)) {
+                    writer.WriteObjectIdentifier(QcTypeStatement.Oid_QcType_eSign);
+                }
+                if (type.HasFlag(QcTypeIdentifiers.eSeal)) {
+                    writer.WriteObjectIdentifier(QcTypeStatement.Oid_QcType_eSeal);
+                }
+                if (type.HasFlag(QcTypeIdentifiers.Web)) {
+                    writer.WriteObjectIdentifier(QcTypeStatement.Oid_QcType_Web);
                 }
             }
-        } else if (root.Value[0] is DerAsnObjectIdentifier oid &&
-                   Psd2QcStatement.Oid_PSD2_QcStatement.Equals(oid.Value.ToOidString())) {
-            _Statements.Psd2Type = new Psd2QcStatement(root.Value).Extract();
+            writer.PopSequence();
         }
-        _decoded = true;
+        writer.PopSequence();
+    }
+
+    private static void EncodeQcPdsStatement(AsnWriter writer, IEnumerable<PdsLocation> pdsLocations) {
+        writer.PushSequence(); // QCStatement
+        {
+            writer.WriteObjectIdentifier(QcPdsStatement.Oid_QcPds);
+            writer.PushSequence(); // PdsLocations
+            {
+                foreach (var location in pdsLocations) {
+                    writer.PushSequence(); // PdsLocation
+                    {
+                        writer.WriteCharacterString(UniversalTagNumber.UTF8String, location.Url);
+                        if (!string.IsNullOrEmpty(location.Language)) {
+                            writer.WriteCharacterString(UniversalTagNumber.PrintableString, location.Language);
+                        }
+                    }
+                    writer.PopSequence();
+                }
+            }
+            writer.PopSequence();
+        }
+        writer.PopSequence();
+    }
+
+    private static void EncodePsd2QcStatement(AsnWriter writer, Psd2Attributes psd2) {
+        writer.PushSequence(); // QCStatement
+        {
+            writer.WriteObjectIdentifier(Psd2QcStatement.Oid_PSD2_QcStatement);
+            writer.PushSequence(); // PSD2QcType
+            {
+                // Roles of PSP
+                writer.PushSequence(); // RolesOfPSP
+                {
+                    if (psd2.HasAccountServicing) {
+                        writer.PushSequence(); // RoleOfPSP
+                        {
+                            writer.WriteObjectIdentifier(Psd2QcStatement.Oid_PSD2_Roles_PSP_AS);
+                            writer.WriteCharacterString(UniversalTagNumber.UTF8String, "PSP_AS");
+                        }
+                        writer.PopSequence();
+                    }
+                    if (psd2.HasPaymentInitiation) {
+                        writer.PushSequence(); // RoleOfPSP
+                        {
+                            writer.WriteObjectIdentifier(Psd2QcStatement.Oid_PSD2_Roles_PSP_PI);
+                            writer.WriteCharacterString(UniversalTagNumber.UTF8String, "PSP_PI");
+                        }
+                        writer.PopSequence();
+                    }
+                    if (psd2.HasAccountInformation) {
+                        writer.PushSequence(); // RoleOfPSP
+                        {
+                            writer.WriteObjectIdentifier(Psd2QcStatement.Oid_PSD2_Roles_PSP_AI);
+                            writer.WriteCharacterString(UniversalTagNumber.UTF8String, "PSP_AI");
+                        }
+                        writer.PopSequence();
+                    }
+                    if (psd2.HasIssuingOfCardBasedPaymentInstruments) {
+                        writer.PushSequence(); // RoleOfPSP
+                        {
+                            writer.WriteObjectIdentifier(Psd2QcStatement.Oid_PSD2_Roles_PSP_IC);
+                            writer.WriteCharacterString(UniversalTagNumber.UTF8String, "PSP_IC");
+                        }
+                        writer.PopSequence();
+                    }
+                }
+                writer.PopSequence();
+
+                // NCAName
+                writer.WriteCharacterString(UniversalTagNumber.UTF8String, psd2.AuthorityName ?? string.Empty);
+
+                // NCAId
+                writer.WriteCharacterString(UniversalTagNumber.UTF8String, psd2.AuthorizationId.ToString());
+            }
+            writer.PopSequence();
+        }
+        writer.PopSequence();
+    }
+
+    private void DecodeExtension() {
+        _Statements = new QualifiedCertificateStatements();
+
+        try {
+            var reader = new AsnReader(RawData, AsnEncodingRules.DER);
+            var mainSeq = reader.ReadSequence();
+
+            while (mainSeq.HasData) {
+                var oid = mainSeq.ReadObjectIdentifier();
+                
+                switch (oid) {
+                    case QcComplianceStatement.Oid_QcCompliance:
+                        _Statements.IsCompliant = true;
+                        break;
+                    case QcLimitValueStatement.Oid_QcLimitValue:
+                        if (mainSeq.HasData) {
+                            var moneySeq = mainSeq.ReadSequence();
+                            string currency = moneySeq.ReadCharacterString(UniversalTagNumber.PrintableString);
+                            long amount = (long)moneySeq.ReadInteger();
+                            int exponent = 0;
+                            if (moneySeq.HasData) {
+                                exponent = (int)moneySeq.ReadInteger();
+                            }
+                            decimal value = (decimal)amount * (decimal)Math.Pow(10.0, exponent);
+                            _Statements.LimitValue = new QcMonetaryValue { Value = value, CurrencyCode = currency };
+                        }
+                        break;
+                    case QcRetentionPeriodStatement.Oid_QcRetentionPeriod:
+                        if (mainSeq.HasData) {
+                            _Statements.RetentionPeriod = (int)mainSeq.ReadInteger();
+                        }
+                        break;
+                    case QcSSCDStatement.Oid_QcSSCD:
+                        _Statements.IsQSCD = true;
+                        break;
+                    case QcPdsStatement.Oid_QcPds:
+                        if (mainSeq.HasData) {
+                            var pdsSeq = mainSeq.ReadSequence();
+                            var locations = new List<PdsLocation>();
+                            while (pdsSeq.HasData) {
+                                var locSeq = pdsSeq.ReadSequence();
+                                string url = locSeq.ReadCharacterString(UniversalTagNumber.UTF8String);
+                                string language = locSeq.HasData ? locSeq.ReadCharacterString(UniversalTagNumber.PrintableString) : string.Empty;
+                                locations.Add(new PdsLocation { Url = url, Language = language });
+                            }
+                            _Statements.PdsLocations = locations.ToArray();
+                        }
+                        break;
+                    case QcTypeStatement.Oid_QcType:
+                        if (mainSeq.HasData) {
+                            var typeSeq = mainSeq.ReadSequence();
+                            QcTypeIdentifiers types = 0;
+                            while (typeSeq.HasData) {
+                                string typeOid = typeSeq.ReadObjectIdentifier();
+                                if (typeOid == QcTypeStatement.Oid_QcType_eSign)
+                                    types |= QcTypeIdentifiers.eSign;
+                                else if (typeOid == QcTypeStatement.Oid_QcType_eSeal)
+                                    types |= QcTypeIdentifiers.eSeal;
+                                else if (typeOid == QcTypeStatement.Oid_QcType_Web)
+                                    types |= QcTypeIdentifiers.Web;
+                            }
+                            _Statements.Type = types;
+                        }
+                        break;
+                    case Psd2QcStatement.Oid_PSD2_QcStatement:
+                        if (mainSeq.HasData) {
+                            _Statements.Psd2Type = DecodePsd2QcType(mainSeq);
+                        }
+                        break;
+                }
+            }
+
+            _decoded = true;
+        } catch (Exception ex) {
+            throw new InvalidOperationException("Failed to decode QualifiedCertificateStatements extension.", ex);
+        }
+    }
+
+    private Psd2Attributes DecodePsd2QcType(AsnReader reader) {
+        var psd2 = new Psd2Attributes();
+        var psd2Seq = reader.ReadSequence();
+
+        // Roles
+        if (psd2Seq.HasData) {
+            var rolesSeq = psd2Seq.ReadSequence();
+            while (rolesSeq.HasData) {
+                var roleSeq = rolesSeq.ReadSequence();
+                string roleOid = roleSeq.ReadObjectIdentifier();
+                string roleName = roleSeq.ReadCharacterString(UniversalTagNumber.UTF8String);
+
+                // Map OID back to role name
+                switch (roleOid) {
+                    case Psd2QcStatement.Oid_PSD2_Roles_PSP_AS:
+                        psd2.HasAccountServicing = true;
+                        break;
+                    case Psd2QcStatement.Oid_PSD2_Roles_PSP_PI:
+                        psd2.HasPaymentInitiation = true;
+                        break;
+                    case Psd2QcStatement.Oid_PSD2_Roles_PSP_AI:
+                        psd2.HasAccountInformation = true;
+                        break;
+                    case Psd2QcStatement.Oid_PSD2_Roles_PSP_IC:
+                        psd2.HasIssuingOfCardBasedPaymentInstruments = true;
+                        break;
+                }
+            }
+        }
+
+        // NCAName
+        if (psd2Seq.HasData) {
+            psd2.AuthorityName = psd2Seq.ReadCharacterString(UniversalTagNumber.UTF8String);
+        }
+
+        // NCAId
+        if (psd2Seq.HasData) {
+            string ncaIdStr = psd2Seq.ReadCharacterString(UniversalTagNumber.UTF8String);
+            psd2.AuthorizationId = NCAId.Parse(ncaIdStr);
+        }
+
+        return psd2;
     }
 }
 
 /// <summary>
-/// Qualified Certificate Statements for PSD2
-/// etsi-psd2-qcStatement QC-STATEMENT ::= {SYNTAX PSD2QcType IDENTIFIED BY id-etsi-psd2-qcStatement } 
-/// </summary>
-public class Psd2QcStatement : DerAsnSequence
-{
-    /// <summary>
-    /// id-etsi-psd2-qcStatement OBJECT IDENTIFIER ::=  { itu-t(0) identified-organization(4) etsi(0) psd2(19495) qcstatement(2) } 
-    /// </summary>
-    public const string Oid_PSD2_QcStatement = "0.4.0.19495.2";
-    private const string Oid_PSD2_Roles = "0.4.0.19495.1";
-    private const string Oid_PSD2_Roles_PSP_AS = Oid_PSD2_Roles + ".1";
-    private const string Oid_PSD2_Roles_PSP_PI = Oid_PSD2_Roles + ".2";
-    private const string Oid_PSD2_Roles_PSP_AI = Oid_PSD2_Roles + ".3";
-    private const string Oid_PSD2_Roles_PSP_IC = Oid_PSD2_Roles + ".4";
-
-    private static readonly Dictionary<string, string> roleId2NameMap = new Dictionary<string, string> {
-        ["PSP_AS"] = Oid_PSD2_Roles_PSP_AS,
-        ["PSP_PI"] = Oid_PSD2_Roles_PSP_PI,
-        ["PSP_AI"] = Oid_PSD2_Roles_PSP_AI,
-        ["PSP_IC"] = Oid_PSD2_Roles_PSP_IC
-    };
-
-    private static string GetPsd2Oid(string roleName) {
-        return roleId2NameMap[roleName];
-    }
-
-    /// <summary>
-    /// Constructs the QcStatement from <see cref="Psd2Attributes "/>.
-    /// </summary>
-    /// <param name="psd2"></param>
-    public Psd2QcStatement(Psd2Attributes psd2) : base(Array.Empty<DerAsnType>()) {
-        var rolesList = new List<DerAsnSequence>();
-        foreach (var roleName in psd2.Roles) {
-            var id = new DerAsnObjectIdentifier(DerAsnIdentifiers.Primitive.ObjectIdentifier, GetPsd2Oid(roleName).OidToArray());
-            var name = new DerAsnUtf8String(roleName);
-            var role = new DerAsnSequence(new DerAsnType[] { id, name });
-            rolesList.Add(role);
-        }
-        var rolesOfPSP = new DerAsnSequence(rolesList.ToArray()); //RolesOfPSP ::= SEQUENCE OF RoleOfPSP 
-        var ncaName = new DerAsnUtf8String(psd2.AuthorityName);
-        var ncaId = new DerAsnUtf8String(psd2.AuthorizationId.ToString());
-
-        var typeSequence = new DerAsnSequence(new DerAsnType[] { rolesOfPSP, ncaName, ncaId });
-
-        var psd2QstatementOid = new DerAsnObjectIdentifier(DerAsnIdentifiers.Primitive.ObjectIdentifier, Oid_PSD2_QcStatement.OidToArray());
-        Value = new DerAsnType[] { psd2QstatementOid, typeSequence };
-    }
-
-    /// <summary>
-    /// constructs the QcStatement from an array of ANS.1 Der encoded data.
-    /// </summary>
-    /// <param name="value"></param>
-    public Psd2QcStatement(DerAsnType[] value) : base(value) {
-
-    }
-
-    /// <summary>
-    /// Deserializes the raw data into the concrete class <see cref="Psd2Attributes"/>.
-    /// </summary>
-    /// <returns>Deserilized contents</returns>
-    public Psd2Attributes Extract() {
-        var attributes = new Psd2Attributes();
-        var typeSequence = Value.Where(x => x is DerAsnSequence).FirstOrDefault() as DerAsnSequence;
-        var roleSequence = typeSequence?.Value.Where(x => x is DerAsnSequence).FirstOrDefault() as DerAsnSequence;
-        var ncaName = typeSequence?.Value[1] as DerAsnUtf8String;
-        var ncaId = typeSequence?.Value[2] as DerAsnUtf8String;
-        attributes.AuthorityName = ncaName?.Value;
-        attributes.AuthorizationId = NCAId.Parse(ncaId!.Value, false);
-        foreach (var item in roleSequence!.Value) {
-            if (!(item is DerAsnSequence)) {
-                continue;
-            }
-            var role = item as DerAsnSequence;
-            var roleOid = role!.Value[0] as DerAsnObjectIdentifier;
-            var roleOidString = string.Join(".", roleOid!.Value);
-            switch (roleOidString) {
-                case Oid_PSD2_Roles_PSP_AS: attributes.HasAccountServicing = true; break;
-                case Oid_PSD2_Roles_PSP_PI: attributes.HasPaymentInitiation = true; break;
-                case Oid_PSD2_Roles_PSP_AI: attributes.HasAccountInformation = true; break;
-                case Oid_PSD2_Roles_PSP_IC: attributes.HasIssuingOfCardBasedPaymentInstruments = true; break;
-            }
-        }
-        return attributes;
-    }
-}
-
-/// <summary>
-/// QCStatement claiming that the certificate is a EU qualified
-/// certificate or a certificate being qualified within a defined legal
-/// framework from an identified country or set of countries
+/// <b>QcCompliance</b>. QCStatement claiming that the certificate is a European Qualified Certificate
 /// </summary>
 /// <remarks>
-/// esi4-qcStatement-1 QC-STATEMENT ::= { IDENTIFIED BY id-etsi-qcs-QcCompliance }
-/// id-etsi-qcs-QcCompliance OBJECT IDENTIFIER ::= { id-etsi-qcs 1 }
+/// esi4-qcStatement-1 QC-STATEMENT ::= { SYNTAX NULL IDENTIFIED BY id-etsi-qcs-QcCompliance }
+/// id-etsi-qcs-QcCompliance OBJECT IDENTIFIER ::= { id-etsi-qcs 1 } 
 /// </remarks>
-public class QcComplianceStatement : DerAsnSequence
+public static class QcComplianceStatement
 {
-
     /// <summary>
-    /// id-etsi-qcs-QcCompliance OBJECT IDENTIFIER ::=  { itu-t(0) identified-organization(4) etsi(0) qc-profile(1862) qcs(1) qcstatement(1) } 
+    /// id-etsi-qcs-QcCompliance OBJECT IDENTIFIER ::=  {itu-t(0) identified-organization(4) etsi(0) qc-profile(1862) qcs(1) qcs-QcCompliance(1)}
     /// </summary>
     public const string Oid_QcCompliance = "0.4.0.1862.1.1";
-
-    /// <summary>
-    /// Constructs the QcStatement to be added to a certificate.
-    /// </summary>
-    public QcComplianceStatement() : base(Array.Empty<DerAsnType>()) {
-        var oid = new DerAsnObjectIdentifier(DerAsnIdentifiers.Primitive.ObjectIdentifier, Oid_QcCompliance.OidToArray());
-        Value = new DerAsnType[] { oid };
-    }
-
-    /// <summary>
-    /// constructs the QcStatement from an array of ANS.1 Der encoded data.
-    /// </summary>
-    /// <param name="value"></param>
-    public QcComplianceStatement(DerAsnType[] value) : base(value) {
-
-    }
-
-    /// <summary>
-    /// Nothing to do. This always returns true.
-    /// if this statement is present this automatically means the cert is qualified.
-    /// </summary>
-    /// <returns>Deserilized contents</returns>
-    public bool Extract() {
-        var isQualified = true;
-        return isQualified;
-    }
 }
-
 
 /// <summary>
 /// <b>QcRetentionPeriod</b>. QCStatement indicating the duration of the retention period of
 /// material information
 /// </summary>
 /// <remarks>
-/// esi4-qcStatement-3 QC-STATEMENT ::= { SYNTAX QcEuRetentionPeriod IDENTIFIED BY id-etsi-qcs-QcRetentionPeriod }
-///  QcEuRetentionPeriod ::= INTEGER
-///  id-etsi-qcs-QcRetentionPeriod OBJECT IDENTIFIER ::= { id-etsi-qcs 3 } 
+/// esi4-qcStatement-3 QC-STATEMENT ::= { SYNTAX QcRetentionPeriod IDENTIFIED BY id-etsi-qcs-QcRetentionPeriod }
+/// QcRetentionPeriod::= INTEGER
+/// id-etsi-qcs-QcRetentionPeriod OBJECT IDENTIFIER ::= { id-etsi-qcs 3 } 
 /// </remarks>
-public class QcRetentionPeriodStatement : DerAsnSequence
+public static class QcRetentionPeriodStatement
 {
-
     /// <summary>
     /// id-etsi-qcs-QcRetentionPeriod OBJECT IDENTIFIER ::=  {itu-t(0) identified-organization(4) etsi(0) qc-profile(1862) qcs(1) qcs-QcRetentionPeriod(3)}
     /// </summary>
     public const string Oid_QcRetentionPeriod = "0.4.0.1862.1.3";
-
-    /// <summary>
-    /// Constructs the QcStatement so it can be added to a certificate.
-    /// </summary>
-    public QcRetentionPeriodStatement(int retentionPeriod) : base(Array.Empty<DerAsnType>()) {
-        var oid = new DerAsnObjectIdentifier(DerAsnIdentifiers.Primitive.ObjectIdentifier, Oid_QcRetentionPeriod.OidToArray());
-        Value = new DerAsnType[] { oid, new DerAsnInteger(new BigInteger(retentionPeriod)) };
-    }
-
-    /// <summary>
-    /// constructs the QcStatement from an array of ANS.1 Der encoded data.
-    /// </summary>
-    /// <param name="value"></param>
-    public QcRetentionPeriodStatement(DerAsnType[] value) : base(value) {
-
-    }
-
-
-    /// <summary>
-    /// Deserializes the data into a concrete type
-    /// </summary>
-    /// <returns>Deserilized contents</returns>
-    public int Extract() {
-        var retention = Value.OfType<DerAsnInteger>().FirstOrDefault();
-        return retention != null ? (int)retention.Value : 0;
-    }
 }
 
 /// <summary>
-/// <b>QcSSCD</b>. This Qcstatement declares that the private key related to the certified public key resides in a Qualified
-/// Signature/Seal Creation Device(QSCD)
+/// <b>QcSSCD</b>. QCStatement claiming that the private key related to the certified
+/// public key resides in a QSCD
 /// </summary>
 /// <remarks>
-/// esi4-qcStatement-3 QC-STATEMENT ::= { SYNTAX QcEuRetentionPeriod IDENTIFIED BY id-etsi-qcs-QcRetentionPeriod }
-///  QcEuRetentionPeriod ::= INTEGER
-///  id-etsi-qcs-QcRetentionPeriod OBJECT IDENTIFIER ::= { id-etsi-qcs 3 } 
+/// esi4-qcStatement-4 QC-STATEMENT ::= { SYNTAX NULL IDENTIFIED BY id-etsi-qcs-QcSSCD }
+/// id-etsi-qcs-QcSSCD OBJECT IDENTIFIER ::= { id-etsi-qcs 4 } 
 /// </remarks>
-public class QcSSCDStatement : DerAsnSequence
+public static class QcSSCDStatement
 {
-
     /// <summary>
-    /// id-etsi-qcs-QcRetentionPeriod OBJECT IDENTIFIER ::=  {itu-t(0) identified-organization(4) etsi(0) qc-profile(1862) qcs(1) qcs-QcSSCD(4)}
+    /// id-etsi-qcs-QcSSCD OBJECT IDENTIFIER ::=  {itu-t(0) identified-organization(4) etsi(0) qc-profile(1862) qcs(1) qcs-QcSSCD(4)}
     /// </summary>
     public const string Oid_QcSSCD = "0.4.0.1862.1.4";
-
-    /// <summary>
-    /// Constructs the QcStatement so it can be added to a certificate.
-    /// </summary>
-    public QcSSCDStatement() : base(Array.Empty<DerAsnType>()) {
-        var oid = new DerAsnObjectIdentifier(DerAsnIdentifiers.Primitive.ObjectIdentifier, Oid_QcSSCD.OidToArray());
-        Value = new DerAsnType[] { oid };
-    }
-
-    /// <summary>
-    /// constructs the QcStatement from an array of ANS.1 Der encoded data.
-    /// </summary>
-    /// <param name="value"></param>
-    public QcSSCDStatement(DerAsnType[] value) : base(value) {
-
-    }
-
-    /// <summary>
-    /// Deserializes the data into a concrete type
-    /// </summary>
-    /// <returns>Deserilized contents</returns>
-    public bool Extract() { return true; }
 }
-
 
 /// <summary>
 /// <b>QcLimitValue</b>. QCStatement regarding limits on the value of transactions 
 /// material information
 /// </summary>
-/// <remarks>
-/// esi4-qcStatement-2 QC-STATEMENT ::= { SYNTAX QcEuLimitValue IDENTIFIED
-///     BY id-etsi-qcs-QcLimitValue }
-///     QcEuLimitValue ::= MonetaryValue
-///     MonetaryValue::= SEQUENCE {
-///          currency Iso4217CurrencyCode,
-///          amount INTEGER,
-///          exponent INTEGER}
-///       -- value = amount * 10^exponent
-///     Iso4217CurrencyCode ::= CHOICE {
-///          alphabetic PrintableString (SIZE (3)), -- Recommended
-///          numeric INTEGER (1..999) }
-///          -- Alphabetic or numeric currency code as defined in ISO 4217
-///          -- It is recommended that the Alphabetic form is used
-///     id-etsi-qcs-QcLimitValue OBJECT IDENTIFIER ::= { id-etsi-qcs 2 } 
-/// </remarks>
-public class QcLimitValueStatement : DerAsnSequence
+public static class QcLimitValueStatement
 {
-
     /// <summary>
     /// id-etsi-qcs-QcLimitValue OBJECT IDENTIFIER ::=  {itu-t(0) identified-organization(4) etsi(0) qc-profile(1862) qcs(1) qcs-QcLimitValue(2)}
     /// </summary>
     public const string Oid_QcLimitValue = "0.4.0.1862.1.2";
-
-    /// <summary>
-    /// Constructs the QcStatement so it can be added to a certificate.
-    /// </summary>
-    public QcLimitValueStatement(QcMonetaryValue limit)
-        : this(limit.Value, limit.CurrencyCode) {
-    }
-
-    /// <summary>
-    /// Constructs the QcStatement so it can be added to a certificate.
-    /// </summary>
-    public QcLimitValueStatement(decimal limitValue, string currenyCode) : base(Array.Empty<DerAsnType>()) {
-        var parts = decimal.GetBits(limitValue);
-        var scale = (byte)((parts[3] >> 16) & 0x7F);
-        var amount = ((BigInteger)limitValue) * (int)Math.Pow(10.0, scale);
-        var oid = new DerAsnObjectIdentifier(DerAsnIdentifiers.Primitive.ObjectIdentifier, Oid_QcLimitValue.OidToArray());
-        Value = new DerAsnType[] { oid, new DerAsnSequence(new DerAsnType[] {
-            new DerAsnPrintableString(currenyCode.Substring(0, 3)),
-            new DerAsnInteger(amount),
-            new DerAsnInteger(new BigInteger(-scale)),
-        }) };
-    }
-
-    /// <summary>
-    /// constructs the QcStatement from an array of ANS.1 Der encoded data.
-    /// </summary>
-    /// <param name="value"></param>
-    public QcLimitValueStatement(DerAsnType[] value) : base(value) {
-
-    }
-
-
-    /// <summary>
-    /// Deserializes the data into a concrete type
-    /// </summary>
-    /// <returns>Deserilized contents</returns>
-    public QcMonetaryValue Extract() {
-        var sequence = Value.OfType<DerAsnSequence>().FirstOrDefault();
-        if (sequence == null)
-            return null;
-
-        var monetaryValue = new QcMonetaryValue();
-        if (sequence.Value[0] is DerAsnPrintableString printableString) {
-            monetaryValue.CurrencyCode = printableString.Value;
-        } else if (sequence.Value[0] is DerAsnInteger integer) {
-            monetaryValue.CurrencyCode = ((int)integer.Value).ToString();
-        }
-        var amount = ((DerAsnInteger)(sequence.Value[1])).Value;
-        var exponent = (int)((DerAsnInteger)(sequence.Value[2])).Value;
-        monetaryValue.Value = (decimal)amount * (decimal)Math.Pow(10.0, exponent);
-        return monetaryValue;
-    }
-
 }
 
-
 /// <summary>
-/// <b>QcPds</b>. This QCStatement holds URLs to PKI Disclosure Statements (PDS) in accordance with Annex A of ETSI EN 319 411-1 [i.10]. 
+/// <b>QcPDS</b>. This QCStatement holds URLs to PKI Disclosure Statements (PDS) in accordance with Annex A of ETSI EN 319 411-1 [i.10]
 /// </summary>
 /// <remarks>
-/// esi4-qcStatement-5 QC-STATEMENT ::= { SYNTAX QcEuPDS IDENTIFIED BY id-etsi-qcs-QcPDS }
-///     
-/// QcEuPDS ::= PdsLocations
-/// 
-/// PdsLocations ::= SEQUENCE SIZE (1..MAX) OF PdsLocation
-/// 
-/// PdsLocation::= SEQUENCE {
-///     url        IA5String,
-///     language   PrintableString (SIZE(2))} --ISO 639-1 language code
-///     
-/// id-etsi-qcs-QcPDS OBJECT IDENTIFIER ::= { id-etsi-qcs 5 } 
+/// esi4-qcStatement-5 QC-STATEMENT ::= { SYNTAX QcPdsLocations IDENTIFIED BY id-etsi-qcs-QcPds }
+/// QcPdsLocations ::= SEQUENCE OF PdsLocation
+/// id-etsi-qcs-QcPds OBJECT IDENTIFIER ::= { id-etsi-qcs 5 } 
 /// </remarks>
-public class QcPdsStatement : DerAsnSequence
+public static class QcPdsStatement
 {
-
     /// <summary>
-    /// id-etsi-qcs-QcPDS OBJECT IDENTIFIER ::=  {itu-t(0) identified-organization(4) etsi(0) qc-profile(1862) qcs(1) qcs-QcPDS(5)}
+    /// id-etsi-qcs-QcPds OBJECT IDENTIFIER ::=  {itu-t(0) identified-organization(4) etsi(0) qc-profile(1862) qcs(1) qcs-QcPds(5)}
     /// </summary>
     public const string Oid_QcPds = "0.4.0.1862.1.5";
-
-    /// <summary>
-    /// Constructs the QcStatement so it can be added to a certificate.
-    /// </summary>
-    public QcPdsStatement(IEnumerable<PdsLocation> pdsLocations) : base(Array.Empty<DerAsnType>()) {
-        var oid = new DerAsnObjectIdentifier(DerAsnIdentifiers.Primitive.ObjectIdentifier, Oid_QcPds.OidToArray());
-        var sequence = new List<DerAsnType>();
-        foreach (var item in pdsLocations) {
-            var pdsSequense = new DerAsnSequence(new DerAsnType[] {
-                new DerAsnIa5String(item.Url),
-                new DerAsnPrintableString(item.Language)
-            });
-            sequence.Add(pdsSequense);
-        }
-        Value = new DerAsnType[] { oid, new DerAsnSequence(sequence.ToArray()) };
-    }
-
-    /// <summary>
-    /// constructs the QcStatement from an array of ANS.1 Der encoded data.
-    /// </summary>
-    /// <param name="value"></param>
-    public QcPdsStatement(DerAsnType[] value) : base(value) {
-
-    }
-
-
-    /// <summary>
-    /// Deserializes the data into a concrete type
-    /// </summary>
-    /// <returns>Deserilized contents</returns>
-    public PdsLocation[] Extract() {
-        var sequence = Value.OfType<DerAsnSequence>().FirstOrDefault();
-        if (sequence == null)
-            return null;
-
-        var list = new List<PdsLocation>();
-        foreach (var item in sequence.Value.OfType<DerAsnSequence>()) {
-            list.Add(new PdsLocation {
-                Url = ((DerAsnIa5String)item.Value[0]).Value,
-                Language = ((DerAsnPrintableString)item.Value[1]).Value,
-            });
-        }
-        return list.ToArray();
-    }
-
 }
 
-
 /// <summary>
-/// <b>QcType</b>. claiming that the certificate is a certificate of a particular type
+/// <b>QcType</b>. Specifies the type of qualified certificate - electronic signature, seal, or website authentication
 /// </summary>
-/// <remarks>
-/// esi4-qcStatement-6 QC-STATEMENT ::= { SYNTAX QcType IDENTIFIED BY id-etsi-qcs-QcType }
-/// 
-/// id-etsi-qcs-QcType OBJECT IDENTIFIER ::= { id-etsi-qcs 6 }
-///     QcType::= SEQUENCE OF OBJECT IDENTIFIER (id-etsi-qct-esign | id-etsi-qct-eseal | id-etsi-qct-web, ...)
-/// 
-/// -- QC type identifiers
-/// id-etsi-qct-esign OBJECT IDENTIFIER ::= { id-etsi-qcs-QcType 1 }
-/// -- Certificate for electronic signatures as defined in Regulation (EU) No 910/2014
-/// id-etsi-qct-eseal OBJECT IDENTIFIER ::= { id-etsi-qcs-QcType 2 }
-/// -- Certificate for electronic seals as defined in Regulation (EU) No 910/2014
-/// id-etsi-qct-web OBJECT IDENTIFIER ::= { id-etsi-qcs-QcType 3 }
-/// -- Certificate for website authentication as defined in Regulation (EU) No 910/2014 
-/// </remarks>
-public class QcTypeStatement : DerAsnSequence
+public static class QcTypeStatement
 {
-
     /// <summary>
-    /// id-etsi-qcs-QcPDS OBJECT IDENTIFIER ::=  {itu-t(0) identified-organization(4) etsi(0) qc-profile(1862) qcs(1) qcs-QcType(6)}
+    /// id-etsi-qcs-QcType OBJECT IDENTIFIER ::=  {itu-t(0) identified-organization(4) etsi(0) qc-profile(1862) qcs(1) qcs-QcType(6)}
     /// </summary>
     public const string Oid_QcType = "0.4.0.1862.1.6";
 
     /// <summary>
-    /// Constructs the QcStatement so it can be added to a certificate.
+    /// id-etsi-qct-esign OBJECT IDENTIFIER ::= { id-etsi-qct 1 }
     /// </summary>
-    public QcTypeStatement(QcTypeIdentifiers type) : base(Array.Empty<DerAsnType>()) {
-        var oid = new DerAsnObjectIdentifier(DerAsnIdentifiers.Primitive.ObjectIdentifier, Oid_QcType.OidToArray());
-        var oidType = new DerAsnObjectIdentifier(DerAsnIdentifiers.Primitive.ObjectIdentifier, (Oid_QcType + "." + (int)type).OidToArray());
-        Value = new DerAsnType[] { oid, new DerAsnSequence(new DerAsnType[] { oidType }) };
-    }
+    public const string Oid_QcType_eSign = "0.4.0.1862.1.6.1";
 
     /// <summary>
-    /// constructs the QcStatement from an array of ANS.1 Der encoded data.
+    /// id-etsi-qct-eseal OBJECT IDENTIFIER ::= { id-etsi-qct 2 }
     /// </summary>
-    /// <param name="value"></param>
-    public QcTypeStatement(DerAsnType[] value) : base(value) {
-
-    }
-
+    public const string Oid_QcType_eSeal = "0.4.0.1862.1.6.2";
 
     /// <summary>
-    /// Deserializes the data into a concrete type
+    /// id-etsi-qct-web OBJECT IDENTIFIER ::= { id-etsi-qct 3 }
     /// </summary>
-    /// <returns>Deserilized contents</returns>
-    public QcTypeIdentifiers Extract() {
-        var sequence = Value.OfType<DerAsnSequence>().FirstOrDefault();
-        var oid = (DerAsnObjectIdentifier)sequence.Value[0];
-        return (QcTypeIdentifiers)oid.Value.Last();
-    }
-
+    public const string Oid_QcType_Web = "0.4.0.1862.1.6.3";
 }
 
 /// <summary>
-///  QC type identifiers
+/// <b>Psd2QcStatement</b>. PSD2 specific QC statement
 /// </summary>
+public static class Psd2QcStatement
+{
+    /// <summary>
+    /// PSD2 QC statement OID
+    /// </summary>
+    public const string Oid_PSD2_QcStatement = "0.4.0.19495.2";
+
+    /// <summary>
+    /// Base OID for PSD2 roles
+    /// </summary>
+    public const string Oid_PSD2_Roles = "0.4.0.19495.1";
+
+    /// <summary>
+    /// PSP Account Servicing role
+    /// </summary>
+    public const string Oid_PSD2_Roles_PSP_AS = Oid_PSD2_Roles + ".1";
+
+    /// <summary>
+    /// PSP Payment Initiation role
+    /// </summary>
+    public const string Oid_PSD2_Roles_PSP_PI = Oid_PSD2_Roles + ".2";
+
+    /// <summary>
+    /// PSP Account Information role
+    /// </summary>
+    public const string Oid_PSD2_Roles_PSP_AI = Oid_PSD2_Roles + ".3";
+
+    /// <summary>
+    /// PSP Issuing of Card-Based Payment Instruments role
+    /// </summary>
+    public const string Oid_PSD2_Roles_PSP_IC = Oid_PSD2_Roles + ".4";
+}
+
+/// <summary>
+/// QC Type Identifiers for certificate types
+/// </summary>
+[Flags]
 public enum QcTypeIdentifiers
 {
     /// <summary>
-    /// Certificate for <b>electronic signatures</b> as defined in Regulation (EU) No 910/2014 
+    /// No specific type
+    /// </summary>
+    None = 0,
+    /// <summary>
+    /// Certificate for <b>electronic signatures</b> as defined in Regulation (EU) No 910/2014
     /// (id-etsi-qct-esign)
     /// </summary>
     eSign = 1,
@@ -593,7 +541,7 @@ public enum QcTypeIdentifiers
     /// Certificate for <b>website authentication</b> as defined in Regulation (EU) No 910/2014
     /// (id-etsi-qct-web)
     /// </summary>
-    Web = 3,
+    Web = 4,
 }
 
 /// <summary>

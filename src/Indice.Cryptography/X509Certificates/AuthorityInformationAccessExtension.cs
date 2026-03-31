@@ -1,12 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
+using System.Formats.Asn1;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
-using DerConverter;
-using DerConverter.Asn;
-using DerConverter.Asn.KnownTypes;
-using Indice.Cryptography.X509Certificates.DerAsnTypes;
 
 namespace Indice.Cryptography.X509Certificates;
 
@@ -42,7 +38,12 @@ public class AuthorityInformationAccessExtension : X509Extension
     public AuthorityInformationAccessExtension(AccessDescription[] accessDescritpions, bool critical) {
         Oid = new Oid(Oid_AuthorityInformationAccess, "Authority Information Access");
         Critical = critical;
-        RawData = DerConvert.Encode(new AccessDescriptionList(accessDescritpions)).ToArray();
+
+        var writer = new AsnWriter(AsnEncodingRules.DER);
+        var list = new AccessDescriptionList(accessDescritpions);
+        list.Encode(writer);
+        RawData = writer.Encode();
+
         _AccessDescriptions = accessDescritpions;
         _decoded = true;
     }
@@ -53,7 +54,6 @@ public class AuthorityInformationAccessExtension : X509Extension
     /// <param name="encodedExtension"></param>
     /// <param name="critical"></param>
     public AuthorityInformationAccessExtension(AsnEncodedData encodedExtension, bool critical) : base(encodedExtension, critical) {
-
     }
 
     private bool _decoded = false;
@@ -81,15 +81,14 @@ public class AuthorityInformationAccessExtension : X509Extension
     }
 
     private void DecodeExtension() {
-        using (var decoder = new DefaultDerAsnDecoder()) {
-            decoder.RegisterType(ContextSpecificString.Id, (dcdr, identifier, data) => new ContextSpecificString(dcdr, identifier, data));
-            var sequence = decoder.Decode(RawData) as DerAsnSequence;
-            _AccessDescriptions = new AccessDescriptionList(sequence!.Value).Extract();
+        try {
+            var reader = new AsnReader(RawData, AsnEncodingRules.DER);
+            _AccessDescriptions = AccessDescriptionList.Decode(reader);
             _decoded = true;
+        } catch (Exception ex) {
+            throw new InvalidOperationException("Failed to decode AuthorityInformationAccess extension.", ex);
         }
-        
     }
-
 }
 
 /// <summary>
@@ -99,7 +98,7 @@ public class AuthorityInformationAccessExtension : X509Extension
 /// accessLocation that is an HTTP[HTTP / 1.1] or Lightweight Directory
 /// Access Protocol[LDAP] Uniform Resource Identifier[URI].
 /// </summary>
-public class AccessDescriptionList : DerAsnSequence
+public class AccessDescriptionList : List<AccessDescription>
 {
     /// <summary>
     /// Authority Information Access Oid (X509 v3)
@@ -120,51 +119,66 @@ public class AccessDescriptionList : DerAsnSequence
     /// </summary>
     public const string Oid_OCP = "1.3.6.1.5.5.7.48.1";
 
-    private static int[] Oid2Array(string oid) {
-        return oid.Split('.').Select(x => int.Parse(x)).ToArray();
+    /// <summary>
+    /// Constructs the <see cref="AccessDescriptionList"/>.
+    /// </summary>
+    public AccessDescriptionList(IEnumerable<AccessDescription> accessDescriptions) : base(accessDescriptions) {
+            
     }
 
-    /// <summary>
-    /// Constructs the <see cref="AccessDescriptionList"/> from <see cref="Uri"/>.
-    /// </summary>
-    /// <param name="descriptions"></param>
-    public AccessDescriptionList(AccessDescription[] descriptions) : base(new DerAsnType[0]) {
-        var list = new List<DerAsnSequence>();
-        foreach (var description in descriptions) {
-            var id = new DerAsnObjectIdentifier(DerAsnIdentifiers.Primitive.ObjectIdentifier, Oid2Array(Oid_AccessDescription + "." + (int)description.AccessMethod));
-            var alternativeName = new ContextSpecificString(description.AccessLocation!);
-            var accessDescription = new DerAsnSequence(new DerAsnType[] { id, alternativeName });
-            list.Add(accessDescription);
+    /// <summary>Encodes the extension part on the writer</summary>
+    /// <param name="writer">The writer to write to</param>
+    public void Encode(AsnWriter writer) {
+        writer.PushSequence(); // SEQUENCE OF AccessDescription
+        {
+            foreach (var description in this) {
+                writer.PushSequence(); // AccessDescription
+                {
+                    // accessMethod OID
+                    string oid = AccessDescriptionList.Oid_AccessDescription + "." + (int)description.AccessMethod;
+                    writer.WriteObjectIdentifier(oid);
+
+                    // accessLocation GeneralName [6] IA5String (context-specific)
+                    writer.WriteCharacterString(UniversalTagNumber.IA5String,
+                        description.AccessLocation ?? string.Empty,
+                        new Asn1Tag(TagClass.ContextSpecific, 6));
+                }
+                writer.PopSequence(); // End AccessDescription
+            }
         }
-        Value = list.ToArray();
+        writer.PopSequence(); // End SEQUENCE OF    
     }
 
-    /// <summary>
-    /// constructs the <see cref="AccessDescriptionList"/> from an array of ANS.1 Der encoded data.
-    /// </summary>
-    /// <param name="value"></param>
-    public AccessDescriptionList(DerAsnType[] value) : base(value) {
-
-    }
-
-    /// <summary>
-    /// Deserializes the raw data into the list of <see cref="AccessDescription"/>.
-    /// </summary>
-    /// <returns>Deserilized contents</returns>
-    public AccessDescription[] Extract() {
+    /// <summary>Decodes the extension part from the reader</summary>
+    /// <param name="reader">The reader</param>
+    /// <returns>The sequence of <see cref="AccessDescription"/></returns>
+    public static AccessDescription[] Decode(AsnReader reader) {
+        var sequenceReader = reader.ReadSequence();
         var descriptions = new List<AccessDescription>();
-        
-        foreach (var item in Value) {
-            if (!(item is DerAsnSequence)) {
+
+        while (sequenceReader.HasData) {
+            var accessDescriptionReader = sequenceReader.ReadSequence();
+            var oid = accessDescriptionReader.ReadObjectIdentifier();
+
+            // Parse the OID to get the access method (last component)
+            var oidParts = oid.Split('.');
+            if (!int.TryParse(oidParts[^1], out int accessMethodValue)) {
                 continue;
             }
-            var accessDescription = item as DerAsnSequence;
-            var accessMethod = accessDescription!.Value[0] as DerAsnObjectIdentifier;
-            var accessLocation = accessDescription.Value[1] as ContextSpecificString;
+
+            // Read the accessLocation with context-specific [6] tag
+            string? accessLocation = null;
+            if (accessDescriptionReader.HasData) {
+                var tag = accessDescriptionReader.PeekTag();
+                if (tag.TagClass == TagClass.ContextSpecific && (int)tag.TagValue == 6) {
+                    accessLocation = accessDescriptionReader.ReadCharacterString(UniversalTagNumber.IA5String,
+                        new Asn1Tag(TagClass.ContextSpecific, 6));
+                }
+            }
 
             descriptions.Add(new AccessDescription {
-                AccessMethod = (AccessDescription.AccessMethodType)(int)accessMethod!.Value[accessMethod.Value.Length - 1],
-                AccessLocation = accessLocation!.Value
+                AccessMethod = (AccessDescription.AccessMethodType)accessMethodValue,
+                AccessLocation = accessLocation
             });
         }
         return descriptions.ToArray();

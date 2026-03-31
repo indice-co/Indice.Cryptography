@@ -91,7 +91,6 @@ public class CertificateTests
     }
 
     [Theory]
-    [InlineData("http://crls.pki.goog/gts1c3/zdATt0Ex_Fk.crl")]
     [InlineData("http://c.pki.goog/we2/xuzt3PU9F_w.crl")]
     public async Task Import_CRL(string revocationListUrl) {
         var http = new HttpClient();        
