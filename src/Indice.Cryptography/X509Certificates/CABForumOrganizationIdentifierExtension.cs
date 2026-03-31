@@ -70,7 +70,11 @@ public class CABForumOrganizationIdentifierExtension : X509Extension
         var writer = new AsnWriter(AsnEncodingRules.DER);
         writer.PushSequence();
         {
-            writer.WriteCharacterString(UniversalTagNumber.PrintableString, orgId.SchemeIdentifier ?? string.Empty);
+            if (orgId.SchemeIdentifier is null) {
+                writer.WriteNull();
+            } else {
+                writer.WriteCharacterString(UniversalTagNumber.PrintableString, orgId.SchemeIdentifier);
+            }
             writer.WriteCharacterString(UniversalTagNumber.PrintableString, orgId.Country);
             writer.WriteCharacterString(UniversalTagNumber.UTF8String, orgId.Reference);
         }
