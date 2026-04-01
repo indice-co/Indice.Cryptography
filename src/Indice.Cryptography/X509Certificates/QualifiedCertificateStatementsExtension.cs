@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Formats.Asn1;
 using System.Linq;
-using System.Numerics;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 
@@ -10,15 +9,16 @@ namespace Indice.Cryptography.X509Certificates;
 
 /// <summary>
 /// QCStatement (rfc3739)
-/// 
+/// <para>
 /// Class for standard X509 certificate extension. 
 /// This extension have some basics defined in RFC 3739, but the majority of fields are used in EU purposes 
 /// and specified in EU standards.
-/// ETSI EN 319 412-5 (v2.1.1, 2016-02 or later)
-/// https://www.etsi.org/deliver/etsi_en/319400_319499/31941205/02.01.01_60/en_31941205v020101p.pdf
-/// ETSI TS 119 495 (v1.1.2, 2018-07 or later)
-/// https://www.etsi.org/deliver/etsi_ts/119400_119499/119495/01.01.02_60/ts_119495v010102p.pdf
-/// 
+/// <list type="number">
+/// <item>ETSI EN 319 412-5 (v2.1.1, 2016-02 or later) <a href="https://www.etsi.org/deliver/etsi_en/319400_319499/31941205/02.01.01_60/en_31941205v020101p.pdf">en_31941205v020101p.pdf</a></item>
+/// <item>ETSI TS 119 495 (v1.1.2, 2018-07 or later) <a href="https://www.etsi.org/deliver/etsi_ts/119400_119499/119495/01.01.02_60/ts_119495v010102p.pdf">ts_119495v010102p.pdf</a></item>
+/// </list>
+/// </para>
+/// <code>
 /// qcStatements  EXTENSION ::= {
 ///        SYNTAX             QCStatements
 ///        IDENTIFIED BY      id-pe-qcStatements }
@@ -31,6 +31,7 @@ namespace Indice.Cryptography.X509Certificates;
 ///        ({SupportedStatements}{@statementId}) OPTIONAL }
 /// 
 ///    SupportedStatements QC-STATEMENT ::= { qcStatement-1,...}
+/// </code>
 /// </summary>
 public class QualifiedCertificateStatementsExtension : X509Extension
 {
@@ -258,74 +259,82 @@ public class QualifiedCertificateStatementsExtension : X509Extension
 
     private void DecodeExtension() {
         _Statements = new QualifiedCertificateStatements();
-
         try {
             var reader = new AsnReader(RawData, AsnEncodingRules.DER);
             var mainSeq = reader.ReadSequence();
-
             while (mainSeq.HasData) {
-                var oid = mainSeq.ReadObjectIdentifier();
-                
-                switch (oid) {
-                    case QcComplianceStatement.Oid_QcCompliance:
-                        _Statements.IsCompliant = true;
-                        break;
-                    case QcLimitValueStatement.Oid_QcLimitValue:
-                        if (mainSeq.HasData) {
-                            var moneySeq = mainSeq.ReadSequence();
-                            string currency = moneySeq.ReadCharacterString(UniversalTagNumber.PrintableString);
-                            long amount = (long)moneySeq.ReadInteger();
-                            int exponent = 0;
-                            if (moneySeq.HasData) {
-                                exponent = (int)moneySeq.ReadInteger();
-                            }
-                            decimal value = (decimal)amount * (decimal)Math.Pow(10.0, exponent);
-                            _Statements.LimitValue = new QcMonetaryValue { Value = value, CurrencyCode = currency };
-                        }
-                        break;
-                    case QcRetentionPeriodStatement.Oid_QcRetentionPeriod:
-                        if (mainSeq.HasData) {
-                            _Statements.RetentionPeriod = (int)mainSeq.ReadInteger();
-                        }
-                        break;
-                    case QcSSCDStatement.Oid_QcSSCD:
-                        _Statements.IsQSCD = true;
-                        break;
-                    case QcPdsStatement.Oid_QcPds:
-                        if (mainSeq.HasData) {
-                            var pdsSeq = mainSeq.ReadSequence();
-                            var locations = new List<PdsLocation>();
-                            while (pdsSeq.HasData) {
-                                var locSeq = pdsSeq.ReadSequence();
-                                string url = locSeq.ReadCharacterString(UniversalTagNumber.UTF8String);
-                                string language = locSeq.HasData ? locSeq.ReadCharacterString(UniversalTagNumber.PrintableString) : string.Empty;
-                                locations.Add(new PdsLocation { Url = url, Language = language });
-                            }
-                            _Statements.PdsLocations = locations.ToArray();
-                        }
-                        break;
-                    case QcTypeStatement.Oid_QcType:
-                        if (mainSeq.HasData) {
-                            var typeSeq = mainSeq.ReadSequence();
-                            QcTypeIdentifiers types = 0;
-                            while (typeSeq.HasData) {
-                                string typeOid = typeSeq.ReadObjectIdentifier();
-                                if (typeOid == QcTypeStatement.Oid_QcType_eSign)
-                                    types |= QcTypeIdentifiers.eSign;
-                                else if (typeOid == QcTypeStatement.Oid_QcType_eSeal)
-                                    types |= QcTypeIdentifiers.eSeal;
-                                else if (typeOid == QcTypeStatement.Oid_QcType_Web)
-                                    types |= QcTypeIdentifiers.Web;
-                            }
-                            _Statements.Type = types;
-                        }
-                        break;
-                    case Psd2QcStatement.Oid_PSD2_QcStatement:
-                        if (mainSeq.HasData) {
-                            _Statements.Psd2Type = DecodePsd2QcType(mainSeq);
-                        }
-                        break;
+                var qcSeq = mainSeq;
+                var tag = mainSeq.PeekTag();
+                // the next element can be either a sequence (if statementInfo is present) or an OID (if statementInfo is absent)
+                if (tag.HasSameClassAndValue(Asn1Tag.Sequence)) {
+                    qcSeq = mainSeq.ReadSequence();
+                } else if (!tag.HasSameClassAndValue(Asn1Tag.ObjectIdentifier)) { 
+                    throw new InvalidOperationException($"Unexpected ASN.1 tag {tag} while decoding QCStatement. Expected SEQUENCE or OBJECT IDENTIFIER.");
                 }
+//                while (qcSeq.HasData) {
+                    var oid = qcSeq.ReadObjectIdentifier();
+
+                    switch (oid) {
+                        case QcComplianceStatement.Oid_QcCompliance:
+                            _Statements.IsCompliant = true;
+                            break;
+                        case QcLimitValueStatement.Oid_QcLimitValue:
+                            if (qcSeq.HasData) {
+                                var moneySeq = qcSeq.ReadSequence();
+                                string currency = moneySeq.ReadCharacterString(UniversalTagNumber.PrintableString);
+                                long amount = (long)moneySeq.ReadInteger();
+                                int exponent = 0;
+                                if (moneySeq.HasData) {
+                                    exponent = (int)moneySeq.ReadInteger();
+                                }
+                                decimal value = (decimal)amount * (decimal)Math.Pow(10.0, exponent);
+                                _Statements.LimitValue = new QcMonetaryValue { Value = value, CurrencyCode = currency };
+                            }
+                            break;
+                        case QcRetentionPeriodStatement.Oid_QcRetentionPeriod:
+                            if (qcSeq.HasData) {
+                                _Statements.RetentionPeriod = (int)qcSeq.ReadInteger();
+                            }
+                            break;
+                        case QcSSCDStatement.Oid_QcSSCD:
+                            _Statements.IsQSCD = true;
+                            break;
+                        case QcPdsStatement.Oid_QcPds:
+                            if (qcSeq.HasData) {
+                                var pdsSeq = qcSeq.ReadSequence();
+                                var locations = new List<PdsLocation>();
+                                while (pdsSeq.HasData) {
+                                    var locSeq = pdsSeq.ReadSequence();
+                                    string url = locSeq.ReadCharacterString(UniversalTagNumber.IA5String);
+                                    string language = locSeq.HasData ? locSeq.ReadCharacterString(UniversalTagNumber.PrintableString) : string.Empty;
+                                    locations.Add(new PdsLocation { Url = url, Language = language });
+                                }
+                                _Statements.PdsLocations = locations.ToArray();
+                            }
+                            break;
+                        case QcTypeStatement.Oid_QcType:
+                            if (qcSeq.HasData) {
+                                var typeSeq = qcSeq.ReadSequence();
+                                QcTypeIdentifiers types = 0;
+                                while (typeSeq.HasData) {
+                                    string typeOid = typeSeq.ReadObjectIdentifier();
+                                    if (typeOid == QcTypeStatement.Oid_QcType_eSign)
+                                        types |= QcTypeIdentifiers.eSign;
+                                    else if (typeOid == QcTypeStatement.Oid_QcType_eSeal)
+                                        types |= QcTypeIdentifiers.eSeal;
+                                    else if (typeOid == QcTypeStatement.Oid_QcType_Web)
+                                        types |= QcTypeIdentifiers.Web;
+                                }
+                                _Statements.Type = types;
+                            }
+                            break;
+                        case Psd2QcStatement.Oid_PSD2_QcStatement:
+                            if (qcSeq.HasData) {
+                                _Statements.Psd2Type = DecodePsd2QcType(qcSeq);
+                            }
+                            break;
+                    }
+//                }
             }
 
             _decoded = true;
@@ -552,11 +561,11 @@ public class PdsLocation
     /// <summary>
     /// The url.
     /// </summary>
-    public string Url { get; set; }
+    public string Url { get; set; } = null!;
     /// <summary>
     /// ISO 639-1 language code
     /// </summary>
-    public string Language { get; set; }
+    public string? Language { get; set; }
     /// <inheritdoc />
     public override string ToString() => $"{Url} ({Language})";
 }
@@ -573,7 +582,7 @@ public class QcMonetaryValue
     /// <summary>
     /// Alphabetic or numeric currency code as defined in ISO 4217 
     /// </summary>
-    public string CurrencyCode { get; set; }
+    public string CurrencyCode { get; set; } = null!;
     /// <inheritdoc />
     public override string ToString() => $"{Value} {CurrencyCode}";
 }

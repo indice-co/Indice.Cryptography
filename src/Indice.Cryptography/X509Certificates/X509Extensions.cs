@@ -1,5 +1,4 @@
-﻿using System.IO;
-using System.Text;
+﻿using System.Text;
 using Indice.Cryptography.X509Certificates;
 
 namespace System.Security.Cryptography.X509Certificates;
@@ -14,6 +13,7 @@ public static class CertificatesExtensions
     /// </summary>
     /// <param name="cert">The certificate to export</param>
     /// <returns>A PEM encoded string</returns>
+    [Obsolete("Use ExportCertificatePem instead.")]
     public static string ExportToPEM(this X509Certificate2 cert) {
         return MakePem(cert.Export(X509ContentType.Cert), "CERTIFICATE", insertLineBreaks: true);
     }
@@ -66,7 +66,7 @@ public static class CertificatesExtensions
     public static RSAParameters ReadAsRSAKey(this string pem) {
         using (var rsa = RSA.Create()) {
             rsa.ImportFromPem(pem);
-            return rsa.ExportParameters(includePrivateParameters: false);
+            return rsa.ExportParameters(includePrivateParameters: true);
         }
     }
 

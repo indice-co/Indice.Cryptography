@@ -13,7 +13,7 @@ public class CertificateTests
         var manager = new CertificateManager();
         var caCert = manager.CreateRootCACertificate("identityserver.gr");
         var cert = manager.CreateQualifiedCertificate(data, "identityserver.gr", issuer: caCert, out var privateKey);
-        var certBase64 = cert.ExportToPEM();
+        var certBase64 = cert.ExportCertificatePem();
         var publicBase64 = privateKey.ToSubjectPublicKeyInfo();
         var privateBase64 = privateKey.ToRSAPrivateKey();
         var pfxBytes = cert.Export(X509ContentType.Pfx, "111");
@@ -38,7 +38,7 @@ public class CertificateTests
         var manager = new CertificateManager();
         var caCert = manager.CreateRootCACertificate("identityserver.gr");
         var cert = manager.CreateQualifiedCertificate(data, "identityserver.gr", issuer: caCert, out var privateKey);
-        var certBase64 = cert.ExportToPEM();
+        var certBase64 = cert.ExportCertificatePem();
         var publicBase64 = privateKey.ToSubjectPublicKeyInfo();
         var privateBase64 = privateKey.ToRSAPrivateKey();
         var pfxBytes = cert.Export(X509ContentType.Pfx, "111");
@@ -140,6 +140,19 @@ public class CertificateTests
         Assert.Equal("800000005", statements.Psd2Type.AuthorizationId.AuthorizationNumber);
         Assert.Equal("838852D2F347686E152CA6A34CACAE17509DBC35", authoritykeyId);
         Assert.Equal("02D324A59192A2E6C6EED29E7AC69FB05073C745", keyId);
+        Assert.Collection(accessDescriptions, 
+            (descriptor) => { 
+                Assert.Equal("http://identityserver.gr/certs/ca.cer", descriptor.AccessLocation);
+                Assert.Equal(AccessDescription.AccessMethodType.CertificationAuthorityIssuer, descriptor.AccessMethod);
+            },
+            (descriptor) => {
+                Assert.Equal("ldap:///CN=DC1W12-DC01-CA,CN=AIA,CN=Public%20Key%20Services,CN=Services,CN=Configuration,DC=chaniabank,DC=gr?cACertificate?base?objectClass=certificationAuthority", descriptor.AccessLocation);
+                Assert.Equal(AccessDescription.AccessMethodType.CertificationAuthorityIssuer, descriptor.AccessMethod);
+            }, 
+            (descriptor) => {
+                Assert.Equal("http://identityserver.gr/certs/ocsp", descriptor.AccessLocation);
+                Assert.Equal(AccessDescription.AccessMethodType.OnlineCertificateStatusProtocol, descriptor.AccessMethod);
+            });
         //Assert.Equal("https://ec.europa.eu/information_society/policy/esignature/trusted-list/tl-mp.xml", accessDescriptions[0].ToString());
     }
 

@@ -1,0 +1,20 @@
+<Solution>
+  <Folder Name="/samples/">
+    <Project Path="samples/Indice.Cryptography.Host/Indice.Cryptography.Host.csproj" />
+  </Folder>
+  <Folder Name="/Solution Items/">
+    <File Path=".editorconfig" />
+    <File Path="README.md" />
+  </Folder>
+  <Folder Name="/src/">
+    <File Path="src/Directory.Build.props" />
+    <File Path="src/Directory.Build.targets" />
+    <Project Path="src/Indice.Cryptography.AspNetCore/Indice.Cryptography.AspNetCore.csproj" />
+    <Project Path="src/Indice.Cryptography/Indice.Cryptography.csproj" />
+    <Project Path="src/Indice.IdentityServer.Psd2/Indice.IdentityServer.Psd2.csproj" />
+  </Folder>
+  <Folder Name="/test/">
+    <File Path="test/Directory.Build.props" />
+    <Project Path="test/Indice.Cryptography.Tests/Indice.Cryptography.Tests.csproj" />
+  </Folder>
+</Solution>
