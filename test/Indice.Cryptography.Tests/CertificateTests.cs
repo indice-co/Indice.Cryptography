@@ -153,6 +153,7 @@ public class CertificateTests
                 Assert.Equal("http://identityserver.gr/certs/ocsp", descriptor.AccessLocation);
                 Assert.Equal(AccessDescription.AccessMethodType.OnlineCertificateStatusProtocol, descriptor.AccessMethod);
             });
+        //Assert.NotEmpty(policyInfos);
         //Assert.Equal("https://ec.europa.eu/information_society/policy/esignature/trusted-list/tl-mp.xml", accessDescriptions[0].ToString());
     }
 
