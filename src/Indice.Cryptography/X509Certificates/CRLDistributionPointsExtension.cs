@@ -8,11 +8,11 @@ namespace Indice.Cryptography.X509Certificates;
 
 /// <summary>
 /// Certificate Revocation List Distribution points extension.
-/// 
+/// <code>
 /// cRLDistributionPoints EXTENSION ::= {
-/// SYNTAX CRLDistPointSyntax
+///     SYNTAX CRLDistPointSyntax
 /// 
-/// IDENTIFIED BY id-ce-cRLDistributionPoints
+///     IDENTIFIED BY id-ce-cRLDistributionPoints
 /// }
 /// 
 /// CRLDistPointSyntax::= SEQUENCE SIZE(1..MAX) OF DistributionPoint
@@ -37,6 +37,7 @@ namespace Indice.Cryptography.X509Certificates;
 /// 	cessationOfOperation(5),
 /// 	certificateHold(6)
 /// }
+/// </code>
 /// </summary>
 public class CRLDistributionPointsExtension : X509Extension
 {
@@ -169,7 +170,7 @@ public class CRLDistributionPoints : List<CRLDistributionPoint>
     public static CRLDistributionPoint[] Decode(AsnReader reader) {
         var mainSeqReader = reader.ReadSequence();
         var points = new List<CRLDistributionPoint>();
-
+        var contextSpecificTag = new Asn1Tag(TagClass.ContextSpecific, 0);
         while (mainSeqReader.HasData) {
             var pointReader = mainSeqReader.ReadSequence();
             var point = new CRLDistributionPoint();

@@ -29,13 +29,8 @@ public class AuthorityKeyIdentifierExtension : X509Extension
     /// </summary>
     /// <param name="issuerKeyIdentifier">The subject key identifier of the issuer certificate in Hex string</param>
     /// <param name="critical"></param>
-    public AuthorityKeyIdentifierExtension(string issuerKeyIdentifier, bool critical) {
-        Oid = new Oid(Oid_AuthorityKeyIdentifier, "Authority Key Identifier");
-        Critical = critical;
-
-        byte[] keyBytes = HexStringToByteArray(issuerKeyIdentifier);
-        RawData = EncodeAuthorityKeyIdentifier(keyBytes);
-
+    public AuthorityKeyIdentifierExtension(string issuerKeyIdentifier, bool critical) 
+        : this(HexStringToByteArray(issuerKeyIdentifier), critical) {
         _KeyId = issuerKeyIdentifier;
         _decoded = true;
     }
@@ -106,10 +101,11 @@ public class AuthorityKeyIdentifierExtension : X509Extension
             var seqReader = reader.ReadSequence();
 
             // Read context-specific [0] IMPLICIT OCTET STRING
+            var implicitOctetStringTag = new Asn1Tag(TagClass.ContextSpecific, 0);
             var tag = seqReader.PeekTag();
-            if (tag.TagClass == TagClass.ContextSpecific && (int)tag.TagValue == 0) {
+            if (tag.HasSameClassAndValue(implicitOctetStringTag)) {
                 // Read the octet string with context-specific tag
-                var keyBytes = seqReader.ReadOctetString(new Asn1Tag(TagClass.ContextSpecific, 0));
+                var keyBytes = seqReader.ReadOctetString(implicitOctetStringTag);
                 _KeyId = string.Join("", keyBytes.ToArray().Select(x => x.ToString("X2")));
             }
         } catch (Exception ex) {

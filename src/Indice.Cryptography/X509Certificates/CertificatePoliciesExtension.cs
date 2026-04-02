@@ -16,6 +16,7 @@ namespace Indice.Cryptography.X509Certificates;
 /// Typically, different certificate policies will relate to different applications which may use the certified key.
 /// </summary>
 /// <remarks>
+/// <code>
 /// id-ce-certificatePolicies OBJECT IDENTIFIER ::=  { id-ce 32 }
 ///
 /// anyPolicy OBJECT IDENTIFIER ::= { id-ce-certificatePolicies 0 }
@@ -61,6 +62,7 @@ namespace Indice.Cryptography.X509Certificates;
 ///     visibleString    VisibleString  (SIZE (1..200)),
 ///     bmpString        BMPString      (SIZE (1..200)),
 ///     utf8String       UTF8String     (SIZE (1..200)) }
+/// </code>
 /// </remarks>
 public class CertificatePoliciesExtension : X509Extension
 {
