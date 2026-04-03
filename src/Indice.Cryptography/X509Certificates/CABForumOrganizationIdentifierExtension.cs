@@ -88,7 +88,13 @@ public class CABForumOrganizationIdentifierExtension : X509Extension
         try {
             var reader = new AsnReader(RawData, AsnEncodingRules.DER);
             var seqReader = reader.ReadSequence();
-            var schemeIdentifier = seqReader.ReadCharacterString(UniversalTagNumber.PrintableString);
+            string? schemeIdentifier;
+            if (seqReader.PeekTag().HasSameClassAndValue(Asn1Tag.Null)) {
+                seqReader.ReadNull();
+                schemeIdentifier = null;
+            } else {
+                schemeIdentifier = seqReader.ReadCharacterString(UniversalTagNumber.PrintableString);
+            }
             var country = seqReader.ReadCharacterString(UniversalTagNumber.PrintableString);
             var reference = seqReader.ReadCharacterString(UniversalTagNumber.UTF8String);
             _OrganizationIdentifier = new CABForumOrganizationIdentifier(schemeIdentifier, country, reference);
