@@ -296,10 +296,12 @@ public static class QcLimitValueStatement
                 var rawBits = decimal.GetBits(monetaryValue.Value);
                 int scale = (rawBits[3] >> 16) & 0x7F;
                 bool isNegative = (rawBits[3] & unchecked((int)0x80000000)) != 0;
-                // Build the 96-bit mantissa as a BigInteger
-                var mantissa = new BigInteger((uint)rawBits[0])
-                    + (new BigInteger((uint)rawBits[1]) << 32)
-                    + (new BigInteger((uint)rawBits[2]) << 64);
+                // Build the 96-bit mantissa as a little-endian byte array for BigInteger
+                // (12 bytes: lo 4 + mid 4 + hi 4, plus a 0x00 to ensure positive interpretation)
+                var mantissaBytes = new byte[13];
+                System.Buffer.BlockCopy(rawBits, 0, mantissaBytes, 0, 12);
+                // mantissaBytes[12] = 0x00 already (ensures the BigInteger is treated as positive)
+                var mantissa = new BigInteger(mantissaBytes, isUnsigned: true, isBigEndian: false);
                 if (isNegative) mantissa = -mantissa;
                 int exponent = -scale;
                 writer.WriteInteger(mantissa);

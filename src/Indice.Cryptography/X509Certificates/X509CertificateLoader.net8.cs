@@ -18,8 +18,8 @@ public static class X509CertificateLoader
     /// <param name="data"> The raw data to load. Cannot be null.</param>
     /// <returns>The certificate</returns>
     public static X509Certificate2 LoadCertificate(byte[] data) {
-        // Detect PEM-encoded input (starts with "-----")
-        if (data.Length > 5 && data[0] == '-') {
+        // Detect PEM-encoded input (PEM begins with "-----BEGIN")
+        if (data.Length > 10 && data[0] == '-' && data[1] == '-' && data[2] == '-' && data[3] == '-' && data[4] == '-') {
             return X509Certificate2.CreateFromPem(System.Text.Encoding.ASCII.GetString(data));
         }
         return new X509Certificate2(data);
@@ -31,8 +31,8 @@ public static class X509CertificateLoader
     /// <param name="data"> The raw data to load. Cannot be null.</param>
     /// <returns>The certificate</returns>
     public static X509Certificate2 LoadCertificate(ReadOnlySpan<byte> data) {
-        // Detect PEM-encoded input (starts with "-----")
-        if (data.Length > 5 && data[0] == '-') {
+        // Detect PEM-encoded input (PEM begins with "-----BEGIN")
+        if (data.Length > 10 && data[0] == '-' && data[1] == '-' && data[2] == '-' && data[3] == '-' && data[4] == '-') {
             return X509Certificate2.CreateFromPem(System.Text.Encoding.ASCII.GetString(data));
         }
         return new X509Certificate2(data);
