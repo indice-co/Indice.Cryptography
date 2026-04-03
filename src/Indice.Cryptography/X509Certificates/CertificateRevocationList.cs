@@ -448,11 +448,7 @@ public class CertificateRevocationListSequence
             writer.PopSequence();
 
             // Signature (as BIT STRING)
-            // BIT STRING format: first byte is number of unused bits (0), followed by signature bytes
-            var bitString = new byte[signature.Length + 1];
-            bitString[0] = 0; // No unused bits
-            Array.Copy(signature, 0, bitString, 1, signature.Length);
-            writer.WriteBitString(bitString);
+            writer.WriteBitString(signature, unusedBitCount: 0);
         }
         writer.PopSequence();
 
