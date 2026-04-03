@@ -76,7 +76,7 @@ public sealed class CertificateHttpResult : IResult, IEndpointMetadataProvider, 
                     await streamWriter.FlushAsync();
                 break;
             case "application/x-pkcs12":
-                var cert = X509CertificateLoader.LoadPkcs12(Encoding.ASCII.GetBytes(_result.EncodedCert!), password: null);
+                var cert = X509CertificateLoader.LoadCertificate(Encoding.ASCII.GetBytes(_result.EncodedCert!));
                 var privateKey = _result.PrivateKey!.ReadAsRSAKey();
                 var buffer = cert.CopyWithPrivateKey(RSA.Create(privateKey)).Export(X509ContentType.Pkcs12, _password);
                 await stream.WriteAsync(buffer, 0, buffer.Length);

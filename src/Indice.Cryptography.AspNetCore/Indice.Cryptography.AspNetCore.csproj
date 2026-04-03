@@ -3,7 +3,6 @@
     <PackageTags>Psd2;OBA;FAPI;Extensions</PackageTags>
     <PackageReleaseNotes>Expose header name.</PackageReleaseNotes>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <TargetFramework></TargetFramework>
     <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
   </PropertyGroup>
   <ItemGroup>
