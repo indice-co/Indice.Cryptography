@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Formats.Asn1;
 using System.Linq;
+using System.Numerics;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 
@@ -290,17 +291,18 @@ public static class QcLimitValueStatement
             writer.PushSequence(); // MonetaryValue
             {
                 writer.WriteCharacterString(UniversalTagNumber.PrintableString, monetaryValue.CurrencyCode);
-                // Derive amount and exponent from the decimal value per RFC 3739
-                // amount * 10^exponent == Value
+                // Derive amount (BigInteger mantissa) and exponent from decimal value per RFC 3739
+                // decimal.GetBits returns [lo, mid, hi, flags]; flags bits 16-23 hold the scale
                 var rawBits = decimal.GetBits(monetaryValue.Value);
-                int scale = (rawBits[3] >> 16) & 0x7F; // number of decimal places (0-28)
-                decimal scaledValue = monetaryValue.Value;
-                for (int i = 0; i < scale; i++) {
-                    scaledValue *= 10;
-                }
-                long amount = (long)scaledValue;
+                int scale = (rawBits[3] >> 16) & 0x7F;
+                bool isNegative = (rawBits[3] & unchecked((int)0x80000000)) != 0;
+                // Build the 96-bit mantissa as a BigInteger
+                var mantissa = new BigInteger((uint)rawBits[0])
+                    + (new BigInteger((uint)rawBits[1]) << 32)
+                    + (new BigInteger((uint)rawBits[2]) << 64);
+                if (isNegative) mantissa = -mantissa;
                 int exponent = -scale;
-                writer.WriteInteger(amount);
+                writer.WriteInteger(mantissa);
                 writer.WriteInteger(exponent);
             }
             writer.PopSequence();
@@ -317,12 +319,18 @@ public static class QcLimitValueStatement
         }
         var moneySeq = reader.ReadSequence();
         string currency = moneySeq.ReadCharacterString(UniversalTagNumber.PrintableString);
-        long amount = (long)moneySeq.ReadInteger();
+        BigInteger amount = moneySeq.ReadInteger();
         int exponent = 0;
         if (moneySeq.HasData) {
             exponent = (int)moneySeq.ReadInteger();
         }
-        decimal value = (decimal)amount * (decimal)Math.Pow(10.0, exponent);
+        // Apply exponent via decimal integer scaling to avoid floating-point imprecision
+        decimal value = (decimal)amount;
+        if (exponent > 0) {
+            for (int i = 0; i < exponent; i++) value *= 10m;
+        } else {
+            for (int i = 0; i > exponent; i--) value /= 10m;
+        }
         return new QcMonetaryValue { Value = value, CurrencyCode = currency };
 
     }

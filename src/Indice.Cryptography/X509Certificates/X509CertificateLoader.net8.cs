@@ -17,14 +17,26 @@ public static class X509CertificateLoader
     /// </summary>
     /// <param name="data"> The raw data to load. Cannot be null.</param>
     /// <returns>The certificate</returns>
-    public static X509Certificate2 LoadCertificate(byte[] data) => new (data);
+    public static X509Certificate2 LoadCertificate(byte[] data) {
+        // Detect PEM-encoded input (starts with "-----")
+        if (data.Length > 5 && data[0] == '-') {
+            return X509Certificate2.CreateFromPem(System.Text.Encoding.ASCII.GetString(data));
+        }
+        return new X509Certificate2(data);
+    }
 
     /// <summary>
     /// Loads a single X.509 certificate (in either the PEM or DER encoding) from the specified raw data. 
     /// </summary>
     /// <param name="data"> The raw data to load. Cannot be null.</param>
     /// <returns>The certificate</returns>
-    public static X509Certificate2 LoadCertificate(ReadOnlySpan<byte> data) => new (data);
+    public static X509Certificate2 LoadCertificate(ReadOnlySpan<byte> data) {
+        // Detect PEM-encoded input (starts with "-----")
+        if (data.Length > 5 && data[0] == '-') {
+            return X509Certificate2.CreateFromPem(System.Text.Encoding.ASCII.GetString(data));
+        }
+        return new X509Certificate2(data);
+    }
 
     /// <summary>
     /// Loads a single X.509 certificate (in either the PEM or DER encoding) from the specified file. 

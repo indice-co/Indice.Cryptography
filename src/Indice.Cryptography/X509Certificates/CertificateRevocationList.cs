@@ -269,9 +269,8 @@ public class CertificateRevocationListSequence
                     
                     // Try to handle as SET (which is what real CRLs use)
                     if (rdnTag.HasSameClassAndValue(new Asn1Tag(TagClass.Universal, isConstructed: true, tagValue: 17))) {
-                        // SET tag - read the raw bytes
-                        var setBytes = issuerSeq.ReadEncodedValue();
-                        var setReader = new AsnReader(setBytes, AsnEncodingRules.DER);
+                        // Read the SET contents directly (ReadSetOf skips the SET header)
+                        var setReader = issuerSeq.ReadSetOf();
                         
                         // Peek inside the SET to see what's there
                         if (setReader.HasData) {

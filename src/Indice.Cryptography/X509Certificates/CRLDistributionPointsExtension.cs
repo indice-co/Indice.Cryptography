@@ -134,19 +134,25 @@ public class CRLDistributionPoints : List<CRLDistributionPoint>
                 writer.PushSequence(); // DistributionPoint
                 {
                     if (point.FullName != null && point.FullName.Length > 0) {
-                        // distributionPoint [0] DistributionPointName (CHOICE fullName [0])
-                        // Write fullName [0] as implicit tag around the GeneralNames sequence
-                        var tag = new Asn1Tag(TagClass.ContextSpecific, 0, isConstructed: true);
-                        writer.PushSequence(tag);
+                        // distributionPoint [0] DistributionPointName
+                        // DistributionPointName ::= CHOICE { fullName [0] GeneralNames, ... }
+                        var distributionPointTag = new Asn1Tag(TagClass.ContextSpecific, 0, isConstructed: true);
+                        var fullNameTag = new Asn1Tag(TagClass.ContextSpecific, 0, isConstructed: true);
+
+                        writer.PushSequence(distributionPointTag);
                         {
-                            // fullName [0] GeneralNames - write each URI as [6]
-                            foreach (var name in point.FullName) {
-                                // GeneralName [6] IA5String (uniformResourceIdentifier)
-                                writer.WriteCharacterString(UniversalTagNumber.IA5String, name,
-                                    new Asn1Tag(TagClass.ContextSpecific, 6));
+                            writer.PushSequence(fullNameTag);
+                            {
+                                // fullName [0] GeneralNames - write each URI as GeneralName [6]
+                                foreach (var name in point.FullName) {
+                                    // GeneralName [6] IA5String (uniformResourceIdentifier)
+                                    writer.WriteCharacterString(UniversalTagNumber.IA5String, name,
+                                        new Asn1Tag(TagClass.ContextSpecific, 6));
+                                }
                             }
+                            writer.PopSequence(fullNameTag);
                         }
-                        writer.PopSequence(tag);
+                        writer.PopSequence(distributionPointTag);
                     }
 
                     if (point.Reason.HasValue) {
