@@ -91,10 +91,9 @@ public class CertificateTests
     }
 
     [Theory]
-    [InlineData("http://c.pki.goog/we2/xuzt3PU9F_w.crl")]
-    public async Task Import_CRL(string revocationListUrl) {
-        var http = new HttpClient();        
-        var rawData = await http.GetByteArrayAsync(revocationListUrl);
+    [InlineData("xuzt3PU9F_w.crl")]
+    public async Task Import_CRL(string revocationListFile) {
+        var rawData = File.ReadAllBytes(Path.Combine(Directory.GetCurrentDirectory(), "data", revocationListFile));
         var crlSeq = CertificateRevocationListSequence.Load(rawData);
         var crl = crlSeq.Extract();
         Assert.True(true);
