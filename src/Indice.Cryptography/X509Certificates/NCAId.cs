@@ -173,7 +173,7 @@ public struct NCAId
     /// Cast Operator 
     /// </summary>
     /// <param name="value">the text to parse</param>
-    public static implicit operator string(NCAId value) => default(NCAId).Equals(value) ? null : value.ToString();
+    public static implicit operator string?(NCAId value) => default(NCAId).Equals(value) ? null : value.ToString();
 }
 
 /// <summary>

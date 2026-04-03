@@ -18,7 +18,10 @@ public static class CertificateApi
         var group = routes.MapGroup(".certificates");
         group.WithGroupName("cert")
              .WithTags("Certificates")
-             .WithOpenApi();
+#if NET8_0
+             .WithOpenApi()
+#endif
+             ;
         var options = routes.ServiceProvider.GetRequiredService<CertificateEndpointsOptions>();
 
         group.MapGet("ca.cer", CertificateHandlers.GetIssuerCertificate)

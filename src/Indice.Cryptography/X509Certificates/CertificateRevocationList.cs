@@ -22,7 +22,7 @@ public class CertificateRevocationListSequence
     public const string Oid_sha256RSA = "1.2.840.113549.1.1.11";
     /// <summary>
     /// Oid for issuer Subject CN.
-    /// </summary]
+    /// </summary>
     public const string Oid_Issuer_CN = "2.5.4.3";
     /// <summary>
     /// Oid for issuer Subject C.

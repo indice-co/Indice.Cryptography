@@ -8,6 +8,9 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+#if NET8_0
+using Indice.Cryptography;
+#endif
 using Indice.Cryptography.AspNetCore.Features;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http.Metadata;
@@ -73,7 +76,7 @@ public sealed class CertificateHttpResult : IResult, IEndpointMetadataProvider, 
                     await streamWriter.FlushAsync();
                 break;
             case "application/x-pkcs12":
-                var cert = new X509Certificate2(Encoding.ASCII.GetBytes(_result.EncodedCert!));
+                var cert = X509CertificateLoader.LoadPkcs12(Encoding.ASCII.GetBytes(_result.EncodedCert!), password: null);
                 var privateKey = _result.PrivateKey!.ReadAsRSAKey();
                 var buffer = cert.CopyWithPrivateKey(RSA.Create(privateKey)).Export(X509ContentType.Pkcs12, _password);
                 await stream.WriteAsync(buffer, 0, buffer.Length);

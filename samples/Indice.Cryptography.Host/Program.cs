@@ -1,8 +1,7 @@
 using System.Security.Cryptography.X509Certificates;
-using Indice.Cryptography.Host.Swagger;
 using Indice.Cryptography.Tokens.HttpMessageSigning;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.OpenApi.Models;
+using Microsoft.OpenApi;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -20,7 +19,6 @@ builder.Services.AddCertificateServer(builder.Environment, options => {
 });
 
 builder.Services.AddSwaggerGen(options => {
-    options.SchemaFilter<SchemaExamplesFilter>();
     options.SwaggerDoc("cert", new OpenApiInfo {
         Description = "Certificate *utilities*",
         Title = "Certificate",
@@ -38,12 +36,8 @@ builder.Services.AddSwaggerGen(options => {
         }
     }
 });
-#if NET9_0_OR_GREATER
 
 var httpSignatureCertificate = X509CertificateLoader.LoadPkcs12FromFile(Path.Combine(builder.Environment.ContentRootPath, builder.Configuration["HttpSignatures:PfxName"] ?? "signatures-certificate.pfx"), builder.Configuration["HttpSignatures:PfxPass"], X509KeyStorageFlags.MachineKeySet);
-#else
-var httpSignatureCertificate = new X509Certificate2(Path.Combine(webHostEnvironment.ContentRootPath, configuration["IdentityServer:SigningPfxFile"] ?? string.Empty), configuration["IdentityServer:SigningPfxPass"], X509KeyStorageFlags.MachineKeySet);
-#endif
 builder.Services.AddHttpSignatures(options => {
     options.MapPath("/payments", HeaderFieldNames.RequestTarget, HeaderFieldNames.Created, HttpDigest.HTTPHeaderName, "x-response-id");
     options.MapPath("/payments/execute", HeaderFieldNames.RequestTarget, HeaderFieldNames.Created, HttpDigest.HTTPHeaderName, "x-response-id");

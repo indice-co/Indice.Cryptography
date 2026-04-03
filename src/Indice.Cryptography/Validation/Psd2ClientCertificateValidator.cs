@@ -47,7 +47,7 @@ public class Psd2ClientCertificateValidator
             } else if ((int)qcStatements!.Type < 0 && 3 < (int)qcStatements.Type) {
                 errorList.Add($"{qcStatements.Type} is not a valid QcTypeIdentifier. Valid options include {QcTypeIdentifiers.Web}, {QcTypeIdentifiers.eSeal} and {QcTypeIdentifiers.eSign}");
             }
-            if (!qcStatements.Psd2Type.Roles.Any()) {
+            if (qcStatements?.Psd2Type?.Roles == null || !qcStatements.Psd2Type.Roles.Any()) {
                 errorList.Add("There are no roles defined in this certificate");
             }
             //if (!qcStatements.Psd2Type.AuthorizationId.IsValid) {
@@ -66,7 +66,7 @@ public class Psd2ClientCertificateValidator
         if (crlDistributionPoints == null || !crlDistributionPoints.Any()) {
             errorList.Add($"There is no CRL distribution points extension inside the certificate.");
         }
-        var authorizationId = qcStatements!.Psd2Type.AuthorizationId;
+        var authorizationId = qcStatements?.Psd2Type?.AuthorizationId;
         var organizationId = certificate.GetCABForumOrganizationIdentifier();
         var subjectOrgId = certificate.GetSubjectBuilder().GetOrganizationIdentifier();
         if (string.IsNullOrEmpty(subjectOrgId)) {
