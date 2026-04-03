@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using Indice.Cryptography.X509Certificates;
@@ -45,8 +46,7 @@ public class Psd2ClientCertificateValidator
             if (type.HasValue && type.Value != qcStatements!.Type) { 
                 errorList.Add($"{qcStatements.Type} is not a valid QcTypeIdentifier for the current use of this certificate. Expected option {type}");
             } else {
-                var allowedTypes = QcTypeIdentifiers.Web | QcTypeIdentifiers.eSeal | QcTypeIdentifiers.eSign;
-                if ((qcStatements!.Type & ~allowedTypes) != 0) {
+                if (!Enum.IsDefined(typeof(QcTypeIdentifiers), qcStatements!.Type) || qcStatements.Type == QcTypeIdentifiers.None) {
                     errorList.Add($"{qcStatements.Type} is not a valid QcTypeIdentifier. Valid options include {QcTypeIdentifiers.Web}, {QcTypeIdentifiers.eSeal} and {QcTypeIdentifiers.eSign}");
                 }
             }

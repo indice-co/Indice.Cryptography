@@ -434,14 +434,16 @@ public static class QcTypeStatement
             writer.WriteObjectIdentifier(Oid_QcType);
             writer.PushSequence(); // QcTypes
             {
-                if (type.HasFlag(QcTypeIdentifiers.eSign)) {
-                    writer.WriteObjectIdentifier(Oid_QcType_eSign);
-                }
-                if (type.HasFlag(QcTypeIdentifiers.eSeal)) {
-                    writer.WriteObjectIdentifier(Oid_QcType_eSeal);
-                }
-                if (type.HasFlag(QcTypeIdentifiers.Web)) {
-                    writer.WriteObjectIdentifier(Oid_QcType_Web);
+                switch (type) {
+                    case QcTypeIdentifiers.eSign:
+                        writer.WriteObjectIdentifier(Oid_QcType_eSign);
+                        break;
+                    case QcTypeIdentifiers.eSeal:
+                        writer.WriteObjectIdentifier(Oid_QcType_eSeal);
+                        break;
+                    case QcTypeIdentifiers.Web:
+                        writer.WriteObjectIdentifier(Oid_QcType_Web);
+                        break;
                 }
             }
             writer.PopSequence();
@@ -457,17 +459,16 @@ public static class QcTypeStatement
             return QcTypeIdentifiers.None;
         }
         var typeSeq = reader.ReadSequence();
-        QcTypeIdentifiers types = 0;
         while (typeSeq.HasData) {
             var typeOid = typeSeq.ReadObjectIdentifier();
             if (typeOid == Oid_QcType_eSign)
-                types |= QcTypeIdentifiers.eSign;
+                return QcTypeIdentifiers.eSign;
             else if (typeOid == Oid_QcType_eSeal)
-                types |= QcTypeIdentifiers.eSeal;
+                return QcTypeIdentifiers.eSeal;
             else if (typeOid == Oid_QcType_Web)
-                types |= QcTypeIdentifiers.Web;
+                return QcTypeIdentifiers.Web;
         }
-        return types;
+        return QcTypeIdentifiers.None;
     }
 }
 
@@ -624,7 +625,6 @@ public static class Psd2QcStatement
 /// <summary>
 /// QC Type Identifiers for certificate types
 /// </summary>
-[Flags]
 public enum QcTypeIdentifiers
 {
     /// <summary>
@@ -645,7 +645,7 @@ public enum QcTypeIdentifiers
     /// Certificate for <b>website authentication</b> as defined in Regulation (EU) No 910/2014
     /// (id-etsi-qct-web)
     /// </summary>
-    Web = 4,
+    Web = 3,
 }
 
 /// <summary>
