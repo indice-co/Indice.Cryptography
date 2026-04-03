@@ -444,6 +444,8 @@ public static class QcTypeStatement
                     case QcTypeIdentifiers.Web:
                         writer.WriteObjectIdentifier(Oid_QcType_Web);
                         break;
+                    default:
+                        throw new ArgumentOutOfRangeException(nameof(type), type, "Invalid QcTypeIdentifier value.");
                 }
             }
             writer.PopSequence();
