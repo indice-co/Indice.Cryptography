@@ -150,10 +150,12 @@ public class CRLDistributionPoints : List<CRLDistributionPoint>
                     }
 
                     if (point.Reason.HasValue) {
-                        // reasons [1] ReasonFlags
-                        byte reasonByte = (byte)point.Reason;
-                        var bitArray = new byte[] { reasonByte };
-                        writer.WriteBitString(bitArray, 0,
+                        // reasons [1] ReasonFlags BIT STRING
+                        // RFC 5280: bit positions numbered from MSB; bit N => byte value (0x80 >> N)
+                        int bitPosition = (int)point.Reason.Value;
+                        byte reasonByte = (byte)(0x80 >> bitPosition);
+                        int unusedBits = 7 - bitPosition;
+                        writer.WriteBitString(new byte[] { reasonByte }, unusedBits,
                             new Asn1Tag(TagClass.ContextSpecific, 1));
                     }
                 }
@@ -209,7 +211,14 @@ public class CRLDistributionPoints : List<CRLDistributionPoint>
                     var reasonBits = pointReader.ReadBitString(out int _,
                         new Asn1Tag(TagClass.ContextSpecific, 1));
                     if (reasonBits.Length > 0) {
-                        point.Reason = (CRLDistributionPoint.ReasonFlags)reasonBits[0];
+                        // Find the bit position of the first set bit scanning from MSB
+                        byte b = reasonBits[0];
+                        for (int i = 0; i < 8; i++) {
+                            if ((b & (0x80 >> i)) != 0) {
+                                point.Reason = (CRLDistributionPoint.ReasonFlags)i;
+                                break;
+                            }
+                        }
                     }
                 }
             }

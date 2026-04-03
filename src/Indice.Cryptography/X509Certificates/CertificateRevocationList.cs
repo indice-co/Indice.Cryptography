@@ -94,7 +94,7 @@ public class CertificateRevocationListSequence
             writer.PushSequence();
             {
                 // C (Country)
-                writer.PushSequence();
+                writer.PushSetOf();
                 {
                     writer.PushSequence();
                     {
@@ -103,10 +103,10 @@ public class CertificateRevocationListSequence
                     }
                     writer.PopSequence();
                 }
-                writer.PopSequence();
+                writer.PopSetOf();
 
                 // O (Organization)
-                writer.PushSequence();
+                writer.PushSetOf();
                 {
                     writer.PushSequence();
                     {
@@ -115,10 +115,10 @@ public class CertificateRevocationListSequence
                     }
                     writer.PopSequence();
                 }
-                writer.PopSequence();
+                writer.PopSetOf();
 
                 // CN (Common Name)
-                writer.PushSequence();
+                writer.PushSetOf();
                 {
                     writer.PushSequence();
                     {
@@ -127,7 +127,7 @@ public class CertificateRevocationListSequence
                     }
                     writer.PopSequence();
                 }
-                writer.PopSequence();
+                writer.PopSetOf();
             }
             writer.PopSequence();
 
@@ -173,35 +173,39 @@ public class CertificateRevocationListSequence
                 writer.PopSequence();
             }
 
-            // CRL Extensions (optional, context-specific [0])
+            // CRL Extensions (optional, context-specific [0] EXPLICIT Extensions)
             writer.PushSequence(new Asn1Tag(TagClass.ContextSpecific, isConstructed: true, tagValue: 0));
             {
-                // Authority Key Identifier Extension
-                writer.PushSequence();
+                writer.PushSequence(); // Extensions ::= SEQUENCE OF Extension
                 {
-                    writer.WriteObjectIdentifier(Oid_AuthorityKey);
-                    // Write the authority key identifier
-                    var authKeyWriter = new AsnWriter(AsnEncodingRules.DER);
-                    authKeyWriter.PushSequence();
+                    // Authority Key Identifier Extension
+                    writer.PushSequence(); // Extension ::= SEQUENCE { extnID, extnValue }
                     {
-                        var keyBytes = crl.AuthorizationKeyId?.HexToBytes() ?? Array.Empty<byte>();
-                        authKeyWriter.WriteOctetString(keyBytes, new Asn1Tag(TagClass.ContextSpecific, isConstructed: false, tagValue: 0));
+                        writer.WriteObjectIdentifier(Oid_AuthorityKey);
+                        // Write the authority key identifier
+                        var authKeyWriter = new AsnWriter(AsnEncodingRules.DER);
+                        authKeyWriter.PushSequence();
+                        {
+                            var keyBytes = crl.AuthorizationKeyId?.HexToBytes() ?? Array.Empty<byte>();
+                            authKeyWriter.WriteOctetString(keyBytes, new Asn1Tag(TagClass.ContextSpecific, isConstructed: false, tagValue: 0));
+                        }
+                        authKeyWriter.PopSequence();
+                        writer.WriteOctetString(authKeyWriter.Encode());
                     }
-                    authKeyWriter.PopSequence();
-                    writer.WriteOctetString(authKeyWriter.Encode());
-                }
-                writer.PopSequence();
+                    writer.PopSequence();
 
-                // CRL Number Extension
-                writer.PushSequence();
-                {
-                    writer.WriteObjectIdentifier(Oid_CRLNumber);
-                    // Write the CRL number
-                    var crlNumWriter = new AsnWriter(AsnEncodingRules.DER);
-                    crlNumWriter.WriteInteger(crl.CrlNumber);
-                    writer.WriteOctetString(crlNumWriter.Encode());
+                    // CRL Number Extension
+                    writer.PushSequence(); // Extension ::= SEQUENCE { extnID, extnValue }
+                    {
+                        writer.WriteObjectIdentifier(Oid_CRLNumber);
+                        // Write the CRL number
+                        var crlNumWriter = new AsnWriter(AsnEncodingRules.DER);
+                        crlNumWriter.WriteInteger(crl.CrlNumber);
+                        writer.WriteOctetString(crlNumWriter.Encode());
+                    }
+                    writer.PopSequence();
                 }
-                writer.PopSequence();
+                writer.PopSequence(); // End Extensions SEQUENCE
             }
             writer.PopSequence(new Asn1Tag(TagClass.ContextSpecific, isConstructed: true, tagValue: 0));
         }
@@ -378,11 +382,17 @@ public class CertificateRevocationListSequence
         // CRL Extensions (optional, context-specific [0])
         try {
             if (tbsCertList.HasData && tbsCertList.PeekTag().HasSameClassAndValue(new Asn1Tag(TagClass.ContextSpecific, isConstructed: true, tagValue: 0))) {
-                var extSeq = tbsCertList.ReadSequence(new Asn1Tag(TagClass.ContextSpecific, isConstructed: true, tagValue: 0));
+                var contextSeq = tbsCertList.ReadSequence(new Asn1Tag(TagClass.ContextSpecific, isConstructed: true, tagValue: 0));
+                // Extensions ::= SEQUENCE OF Extension - read the outer SEQUENCE wrapper
+                var extSeq = contextSeq.ReadSequence();
                 while (extSeq.HasData) {
                     try {
                         var extension = extSeq.ReadSequence();
                         var extOid = extension.ReadObjectIdentifier();
+                        // Skip optional critical BOOLEAN (default false)
+                        if (extension.HasData && extension.PeekTag().HasSameClassAndValue(Asn1Tag.Boolean)) {
+                            extension.ReadBoolean();
+                        }
                         var extValue = extension.ReadOctetString();
 
                         switch (extOid) {

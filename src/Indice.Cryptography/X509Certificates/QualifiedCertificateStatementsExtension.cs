@@ -290,7 +290,18 @@ public static class QcLimitValueStatement
             writer.PushSequence(); // MonetaryValue
             {
                 writer.WriteCharacterString(UniversalTagNumber.PrintableString, monetaryValue.CurrencyCode);
-                writer.WriteInteger((long)monetaryValue.Value);
+                // Derive amount and exponent from the decimal value per RFC 3739
+                // amount * 10^exponent == Value
+                var rawBits = decimal.GetBits(monetaryValue.Value);
+                int scale = (rawBits[3] >> 16) & 0x7F; // number of decimal places (0-28)
+                decimal scaledValue = monetaryValue.Value;
+                for (int i = 0; i < scale; i++) {
+                    scaledValue *= 10;
+                }
+                long amount = (long)scaledValue;
+                int exponent = -scale;
+                writer.WriteInteger(amount);
+                writer.WriteInteger(exponent);
             }
             writer.PopSequence();
         }
