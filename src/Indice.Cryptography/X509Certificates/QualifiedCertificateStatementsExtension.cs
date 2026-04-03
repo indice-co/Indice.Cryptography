@@ -351,7 +351,7 @@ public static class QcPdsStatement
                 foreach (var location in pdsLocations) {
                     writer.PushSequence(); // PdsLocation
                     {
-                        writer.WriteCharacterString(UniversalTagNumber.UTF8String, location.Url);
+                        writer.WriteCharacterString(UniversalTagNumber.IA5String, location.Url);
                         if (!string.IsNullOrEmpty(location.Language)) {
                             writer.WriteCharacterString(UniversalTagNumber.PrintableString, location.Language);
                         }

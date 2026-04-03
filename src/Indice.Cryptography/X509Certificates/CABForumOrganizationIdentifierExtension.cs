@@ -15,7 +15,7 @@ namespace Indice.Cryptography.X509Certificates;
 public class CABForumOrganizationIdentifierExtension : X509Extension
 {
     /// <summary>
-    /// Extended Evaluation (EV) guidelines Oid (X509 v3)
+    /// Extended Validation (EV) guidelines Oid (X509 v3)
     /// </summary>
     public const string Oid_CabForumOrganizationIdentifier = "2.23.140.3.1";
 
@@ -26,7 +26,7 @@ public class CABForumOrganizationIdentifierExtension : X509Extension
     /// <param name="organizationIdentifier"></param>
     /// <param name="critical"></param>
     public CABForumOrganizationIdentifierExtension(CABForumOrganizationIdentifier organizationIdentifier, bool critical) {
-        Oid = new Oid(Oid_CabForumOrganizationIdentifier, "CRL Distribution Points");
+        Oid = new Oid(Oid_CabForumOrganizationIdentifier, "CAB Forum Organization Identifier");
         Critical = critical;
         RawData = EncodeOrganizationIdentifier(organizationIdentifier);
         _OrganizationIdentifier = organizationIdentifier;

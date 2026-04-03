@@ -416,7 +416,6 @@ public class CertificateManager
             store.Add(imported);
             store.Close();
         }
-        ;
 
         return imported;
     }
@@ -537,7 +536,6 @@ public class CertificateManager
             }
             store.Close();
         }
-        ;
     }
 
     /// <summary>
