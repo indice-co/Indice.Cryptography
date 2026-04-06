@@ -108,7 +108,7 @@ public class CertificateTests
     }
 
 
-    const string QwacBase64 = @"-----BEGIN CERTIFICATE-----
+    const string QwacCertificatePem = @"-----BEGIN CERTIFICATE-----
 MIIGVTCCBT2gAwIBAgIUcGJLSmvcSs3yZnrmpVixx3JRgt0wDQYJKoZIhvcNAQEL
 BQAwgYoxCzAJBgNVBAYTAkdSMQ8wDQYDVQQIEwZBdHRpa2kxDzANBgNVBAcTBkF0
 aGVuczEVMBMGA1UEChMMQXV0aG9yaXR5IENBMQswCQYDVQQLEwJJVDEaMBgGA1UE
@@ -146,8 +146,8 @@ iHHjNH6muLlC+IW50yq/EMM57PzfNcAd5MPnWhLSCtH7AA2CcflpbnUklyoF+O+3
 -----END CERTIFICATE-----";
 
     [Fact]
-    public void ImportBase64Certificate() {
-        var qwacCert = X509CertificateLoader.LoadCertificate(System.Text.Encoding.ASCII.GetBytes(QwacBase64));
+    public void Import_Pem_QWAC_Certificate() {
+        var qwacCert = X509CertificateLoader.LoadCertificate(System.Text.Encoding.ASCII.GetBytes(QwacCertificatePem));
         var statements = default(QualifiedCertificateStatements);
         var policyInfos = default(PolicyInformation[]);
         var accessDescriptions = default(AccessDescription[]);
@@ -179,7 +179,7 @@ iHHjNH6muLlC+IW50yq/EMM57PzfNcAd5MPnWhLSCtH7AA2CcflpbnUklyoF+O+3
                 keyId = ((X509SubjectKeyIdentifierExtension)extension).SubjectKeyIdentifier;
             }
         }
-        // Note: The test certificate does not include a QcType statement, only PSD2
+        Assert.NotNull(statements);
         Assert.Equal(QcTypeIdentifiers.Web, statements.Type);
         Assert.Equal(20, statements.RetentionPeriod);
         Assert.Equal("EUR", statements.LimitValue.CurrencyCode);
