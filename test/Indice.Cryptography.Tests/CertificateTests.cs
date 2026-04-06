@@ -179,7 +179,8 @@ iHHjNH6muLlC+IW50yq/EMM57PzfNcAd5MPnWhLSCtH7AA2CcflpbnUklyoF+O+3
                 keyId = ((X509SubjectKeyIdentifierExtension)extension).SubjectKeyIdentifier;
             }
         }
-        Assert.NotNull(statements);
+        Assert.NotNull(qwacCert);
+        Assert.NotNull(statements); // QC Statements extension must be present in the test certificate.
         Assert.Equal(QcTypeIdentifiers.Web, statements.Type);
         Assert.Equal(20, statements.RetentionPeriod);
         Assert.Equal("EUR", statements.LimitValue.CurrencyCode);
