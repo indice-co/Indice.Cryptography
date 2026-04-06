@@ -115,15 +115,19 @@ public class CertificatePoliciesExtension : X509Extension
     }
 
     private static byte[] EncodeCertificatePolicies(PolicyInformation[] policies) {
+        ArgumentNullException.ThrowIfNull(policies);
+
         var writer = new AsnWriter(AsnEncodingRules.DER);
         writer.PushSequence();
         {
             foreach (var policy in policies) {
+                if (string.IsNullOrEmpty(policy.PolicyIdentifier)) {
+                    throw new ArgumentException("Each policy must specify a non-null policy identifier.", nameof(policies));
+                }
+
                 writer.PushSequence();
                 {
-                    if (policy.PolicyIdentifier != null) {
-                        writer.WriteObjectIdentifier(policy.PolicyIdentifier);
-                    }
+                    writer.WriteObjectIdentifier(policy.PolicyIdentifier);
                     if (policy.PolicyQualifiers?.Count > 0) {
                         writer.PushSequence();
                         {
