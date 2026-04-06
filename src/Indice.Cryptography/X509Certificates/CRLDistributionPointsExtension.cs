@@ -157,11 +157,16 @@ public class CRLDistributionPoints : List<CRLDistributionPoint>
 
                     if (point.Reason.HasValue) {
                         // reasons [1] ReasonFlags BIT STRING
-                        // RFC 5280: bit positions numbered from MSB; bit N => byte value (0x80 >> N)
+                        // RFC 5280 BIT STRING flags are numbered from the MSB of the first byte.
+                        // Allocate enough bytes for the selected bit position and compute the
+                        // correct byte index, bit index, and DER unused-bit count.
                         int bitPosition = (int)point.Reason.Value;
-                        byte reasonByte = (byte)(0x80 >> bitPosition);
-                        int unusedBits = 7 - bitPosition;
-                        writer.WriteBitString(new byte[] { reasonByte }, unusedBits,
+                        int byteIndex = bitPosition / 8;
+                        int bitIndexInByte = bitPosition % 8;
+                        byte[] reasonBytes = new byte[byteIndex + 1];
+                        reasonBytes[byteIndex] = (byte)(0x80 >> bitIndexInByte);
+                        int unusedBits = 7 - bitIndexInByte;
+                        writer.WriteBitString(reasonBytes, unusedBits,
                             new Asn1Tag(TagClass.ContextSpecific, 1));
                     }
                 }
