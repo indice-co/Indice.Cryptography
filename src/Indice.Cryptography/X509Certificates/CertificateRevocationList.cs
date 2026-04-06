@@ -132,10 +132,10 @@ public class CertificateRevocationListSequence
             writer.PopSequence();
 
             // This Update (Effective Date)
-            writer.WriteGeneralizedTime(crl.EffectiveDate);
+            WriteTime(writer, crl.EffectiveDate);
 
             // Next Update
-            writer.WriteGeneralizedTime(crl.NextUpdate);
+            WriteTime(writer, crl.NextUpdate);
 
             // Revoked Certificates (optional but we include if present)
             if (crl.Items.Count > 0) {
@@ -149,7 +149,7 @@ public class CertificateRevocationListSequence
                             writer.WriteInteger(serialNumber);
 
                             // Revocation Date
-                            writer.WriteGeneralizedTime(cert.RevocationDate);
+                            WriteTime(writer, cert.RevocationDate);
 
                             // CRL Entry Extensions
                             writer.PushSequence();
@@ -481,6 +481,18 @@ public class CertificateRevocationListSequence
     /// Extracts the CRL data
     /// </summary>
     public CertificateRevocationList Extract() => Crl;
+
+    /// <summary>
+    /// Helper method to write either UTCTime or GeneralizedTime depending on the year.
+    /// X.509 DER requires UTCTime for years 1950–2049 and GeneralizedTime for 2050+.
+    /// </summary>
+    private static void WriteTime(AsnWriter writer, DateTimeOffset value) {
+        if (value.Year >= 1950 && value.Year <= 2049) {
+            writer.WriteUtcTime(value);
+        } else {
+            writer.WriteGeneralizedTime(value);
+        }
+    }
 
     /// <summary>
     /// Helper method to read either UTCTime or GeneralizedTime
