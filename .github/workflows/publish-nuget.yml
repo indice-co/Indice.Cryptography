@@ -29,4 +29,4 @@ jobs:
         run: dotnet pack -c Release --output artifacts
 
       - name: Push to NuGet.org
-        run: dotnet nuget push "./artifacts/Indice*.nupkg" --api-key ${{ secrets.NUGET_AUTH_TOKEN }} --skip-duplicate
+        run: dotnet nuget push "./artifacts/Indice*.nupkg" --source https://api.nuget.org/v3/index.json --api-key ${{ secrets.NUGET_AUTH_TOKEN }} --skip-duplicate
