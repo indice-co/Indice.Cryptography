@@ -1,27 +1,23 @@
-﻿using System;
-using System.Collections;
+using System;
 using System.Collections.Generic;
-using System.Globalization;
+using System.Formats.Asn1;
 using System.Linq;
 using System.Numerics;
 using System.Security.Cryptography;
-using DerConverter.Asn;
-using DerConverter.Asn.KnownTypes;
-using Indice.Cryptography.X509Certificates.DerAsnTypes;
 
 namespace Indice.Cryptography.X509Certificates;
 
 /// <summary>
-/// Certificate revocation list CRL
+/// Certificate revocation list CRL encoder/decoder using System.Formats.Asn1
 /// </summary>
-public class CertificateRevocationListSequence : DerAsnSequence
+public class CertificateRevocationListSequence
 {
     /// <summary>
     /// Oid for CRL reason
     /// </summary>
     public const string Oid_CRL_Reason = "2.5.29.21";
     /// <summary>
-    /// Oid for the signing algorythm.
+    /// Oid for the signing algorithm.
     /// </summary>
     public const string Oid_sha256RSA = "1.2.840.113549.1.1.11";
     /// <summary>
@@ -37,208 +33,504 @@ public class CertificateRevocationListSequence : DerAsnSequence
     /// </summary>
     public const string Oid_Issuer_O = "2.5.4.10";
     /// <summary>
-    /// Oid for issuer Subject O.
+    /// Oid for Authority Key Identifier.
     /// </summary>
     public const string Oid_AuthorityKey = "2.5.29.35";
     /// <summary>
-    /// Oid for issuer Subject O.
+    /// Oid for CRL Number.
     /// </summary>
     public const string Oid_CRLNumber = "2.5.29.20";
+
+    private CertificateRevocationList? _crl;
+    private byte[]? _rawTbsCertList;
+
     /// <summary>
-    /// Constructs the <see cref="CertificateRevocationListSequence"/> from <see cref="RevokedCertificate"/>.
+    /// Constructs the <see cref="CertificateRevocationListSequence"/> from <see cref="CertificateRevocationList"/>.
     /// </summary>
-    /// <param name="crl">The data use in order to load the sequence</param>
-    public CertificateRevocationListSequence(CertificateRevocationList crl) : base(new DerAsnType[0]) {
-        //var container = new List<DerAsnType>();
-        var details = new List<DerAsnType>();
-        var list = new List<DerAsnSequence>();
-        foreach (var cert in crl.Items) {
-            var definition = new List<DerAsnType>();
-            var serialNumber = new DerAsnInteger(BigInteger.Parse(cert.SerialNumber!.ToUpper(), NumberStyles.AllowHexSpecifier));
-            var revocationDate = new DerAsnUtcTime(cert.RevocationDate);
-            var reason = new DerAsnSequence(new DerAsnType[] {
-                new DerAsnSequence(new DerAsnType [] {
-                    new DerAsnObjectIdentifier(DerAsnIdentifiers.Primitive.ObjectIdentifier, Oid_CRL_Reason.OidToArray()),
-                    new OctetStringSequence(new [] { new DerAsnEnumerated((byte)cert.ReasonCode) })
-                })
-            });
-            definition.Add(serialNumber);
-            definition.Add(revocationDate);
-            definition.Add(reason);
-            list.Add(new DerAsnSequence(definition.ToArray()));
-        }
-        details.Add(new DerAsnInteger(new BigInteger(1)));
-        details.Add(new DerAsnSequence(new DerAsnType[] {
-            new DerAsnObjectIdentifier(DerAsnIdentifiers.Primitive.ObjectIdentifier, Oid_sha256RSA.OidToArray()),
-            new DerAsnNull()
-        }));
-        details.Add(new DerAsnSequence(new DerAsnType[] {
-            new DerAsnSet(new DerAsnType[] {
-                new DerAsnSequence(new DerAsnType[] {
-                    new DerAsnObjectIdentifier(DerAsnIdentifiers.Primitive.ObjectIdentifier, Oid_Issuer_C.OidToArray()),
-                    new DerAsnPrintableString(crl.Country)
-                })
-            }),
-            new DerAsnSet(new DerAsnType[] {
-                new DerAsnSequence(new DerAsnType[] {
-                    new DerAsnObjectIdentifier(DerAsnIdentifiers.Primitive.ObjectIdentifier, Oid_Issuer_O.OidToArray()),
-                    new DerAsnPrintableString(crl.Organization)
-                })
-            }),
-            new DerAsnSet(new DerAsnType[] {
-                new DerAsnSequence(new DerAsnType[] {
-                    new DerAsnObjectIdentifier(DerAsnIdentifiers.Primitive.ObjectIdentifier, Oid_Issuer_CN.OidToArray()),
-                    new DerAsnPrintableString(crl.IssuerCommonName)
-                })
-            })
-        }));
-        details.Add(new DerAsnUtcTime(crl.EffectiveDate));
-        details.Add(new DerAsnUtcTime(crl.NextUpdate));
-        details.Add(new DerAsnSequence(list.ToArray()));
-        details.Add(new ContextSpecificSequence(new DerAsnType[] {
-            new DerAsnSequence(new DerAsnType[] {
-                new DerAsnSequence(new DerAsnType[] {
-                    new DerAsnObjectIdentifier(DerAsnIdentifiers.Primitive.ObjectIdentifier, Oid_AuthorityKey.OidToArray()),
-                    new OctetStringSequence(new DerAsnType[] {
-                        new DerAsnSequence(new DerAsnType[] {
-                            new DerAsnOctetString(new DerAsnIdentifier(DerAsnTagClass.ContextSpecific, DerAsnEncodingType.Primitive, 0x0), crl.AuthorizationKeyId.HexToBytes())
-                        })
-                    })
-                })
-            }),
-            new DerAsnSequence(new DerAsnType[] {
-                new DerAsnSequence(new DerAsnType[] {
-                    new DerAsnObjectIdentifier(DerAsnIdentifiers.Primitive.ObjectIdentifier, Oid_CRLNumber.OidToArray()),
-                     new OctetStringSequence(new DerAsnType[] {
-                       new DerAsnInteger(new BigInteger(crl.CrlNumber))
-                    })
-                })
-            })
-        }));
-        Value = details.ToArray();
-        //container.Add(new DerAsnSequence(details.ToArray()));
-        //Value = container.ToArray();
+    /// <param name="crl">The CRL data to encode</param>
+    public CertificateRevocationListSequence(CertificateRevocationList crl) {
+        _crl = crl ?? throw new ArgumentNullException(nameof(crl));
+        _rawTbsCertList = EncodeTbsCertList(crl);
     }
 
     /// <summary>
-    /// Creates the CRL envelope and includes the RSA signature with it.
+    /// Constructs from raw DER bytes (for deserialization)
     /// </summary>
-    /// <param name="signingKey"></param>
-    /// <param name="encoder"></param>
-    /// <returns></returns>
-    public byte[] SignAndSerialize(RSA signingKey, IDerAsnEncoder? encoder = null) {
-        var data = DerConverter.DerConvert.Encode(this);
-        var signature = signingKey.SignData(data, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
-        var container = new DerAsnSequence(new DerAsnType[] {
-            this,
-            new DerAsnSequence(new DerAsnType[] {
-                new DerAsnObjectIdentifier(DerAsnIdentifiers.Primitive.ObjectIdentifier, Oid_sha256RSA.OidToArray()),
-                new DerAsnNull()
-            }),
-            new DerAsnBitString(new BitArray(signature))
-        });
-        return DerConverter.DerConvert.Encode(container);
+    internal CertificateRevocationListSequence(byte[] rawTbsCertList) {
+        _rawTbsCertList = rawTbsCertList;
     }
 
     /// <summary>
-    /// constructs the <see cref="CertificateRevocationListSequence"/> from an array of ANS.1 Der encoded data.
+    /// Gets the underlying CRL data (decoded on first access)
     /// </summary>
-    /// <param name="value"></param>
-    public CertificateRevocationListSequence(DerAsnType[] value) : base(value) {
-
-    }
-
-    /// <summary>
-    /// Deserializes the raw data into the list.
-    /// </summary>
-    /// <returns>Deserilized contents</returns>
-    public CertificateRevocationList Extract() {
-        var crl = new CertificateRevocationList();
-        var details = Value[0] as DerAsnSequence;
-        var version = details!.Value[0] as DerAsnInteger;
-        var algorithm = ((DerAsnSequence)details.Value[1]).Value[0] as DerAsnObjectIdentifier;
-        var subject = ((DerAsnSequence)details.Value[2]).Value.Cast<DerAsnSet>();
-        crl.EffectiveDate = ((DerAsnUtcTime)details.Value[3]).Value.DateTime;
-        crl.NextUpdate = ((DerAsnUtcTime)details.Value[4]).Value.DateTime;
-
-        IEnumerable<DerAsnSequence> list = [];
-        DerAsnType[] info = [];
-        if (details.Value.Length == 7) {
-            list = ((DerAsnSequence)details.Value[5]).Value.Cast<DerAsnSequence>();
-            info = ((DerAsnSequence)((ContextSpecificSequence)details.Value[6]).Value[0]).Value;
-        } else if (details.Value.Length == 6) {
-            info = ((DerAsnSequence)((ContextSpecificSequence)details.Value[5]).Value[0]).Value;
-        }
-        foreach (var part in subject) {
-            var seq = ((DerAsnSequence)part.Value[0]);
-            var oid = seq.Value[0] as DerAsnObjectIdentifier;
-            var text = seq.Value[1] as DerAsnPrintableString;
-            var oidString = string.Join(".", oid!.Value);
-            switch (oidString) {
-                case Oid_Issuer_C: crl.Country = text!.Value; break;
-                case Oid_Issuer_O: crl.Organization = text!.Value; break;
-                case Oid_Issuer_CN: crl.IssuerCommonName = text!.Value; break;
+    public CertificateRevocationList Crl {
+        get {
+            if (_crl == null && _rawTbsCertList != null) {
+                _crl = DecodeTbsCertList(_rawTbsCertList);
             }
+            return _crl ?? throw new InvalidOperationException("CRL data not available");
         }
-        foreach (var item in list) {
-            var serialNumber = item.Value[0] as DerAsnInteger;
-            var revocationDate = item.Value[1] as DerAsnUtcTime;
-            var reason = default(RevokedCertificate.CRLReasonCode);
-            if (item.Value.Length > 2) {
-                var reasonData = ((DerAsnSequence)((DerAsnSequence)item.Value[2]).Value[0]).Value[1];
-                if (reasonData is OctetStringSequence) {
-                    var reasonSeq = reasonData as OctetStringSequence;
-                    reason = (RevokedCertificate.CRLReasonCode)((DerAsnEnumerated)reasonSeq!.Value[0]).Value;
-                } else if (reasonData is DerAsnOctetString) {
-                    reason = (RevokedCertificate.CRLReasonCode)((DerAsnOctetString)reasonData).Value[2];
+    }
+
+    /// <summary>
+    /// Encodes the TBSCertList to DER format
+    /// </summary>
+    private static byte[] EncodeTbsCertList(CertificateRevocationList crl) {
+        var writer = new AsnWriter(AsnEncodingRules.DER);
+        writer.PushSequence();
+        {
+            // Version (v2 = 1)
+            writer.WriteInteger(1);
+
+            // Signature Algorithm
+            writer.PushSequence();
+            {
+                writer.WriteObjectIdentifier(Oid_sha256RSA);
+                writer.WriteNull();
+            }
+            writer.PopSequence();
+
+            // Issuer Name (RDNSequence)
+            writer.PushSequence();
+            {
+                // C (Country)
+                writer.PushSetOf();
+                {
+                    writer.PushSequence();
+                    {
+                        writer.WriteObjectIdentifier(Oid_Issuer_C);
+                        writer.WriteCharacterString(UniversalTagNumber.PrintableString, crl.Country ?? string.Empty);
+                    }
+                    writer.PopSequence();
+                }
+                writer.PopSetOf();
+
+                // O (Organization)
+                writer.PushSetOf();
+                {
+                    writer.PushSequence();
+                    {
+                        writer.WriteObjectIdentifier(Oid_Issuer_O);
+                        writer.WriteCharacterString(UniversalTagNumber.PrintableString, crl.Organization ?? string.Empty);
+                    }
+                    writer.PopSequence();
+                }
+                writer.PopSetOf();
+
+                // CN (Common Name)
+                writer.PushSetOf();
+                {
+                    writer.PushSequence();
+                    {
+                        writer.WriteObjectIdentifier(Oid_Issuer_CN);
+                        writer.WriteCharacterString(UniversalTagNumber.PrintableString, crl.IssuerCommonName ?? string.Empty);
+                    }
+                    writer.PopSequence();
+                }
+                writer.PopSetOf();
+            }
+            writer.PopSequence();
+
+            // This Update (Effective Date)
+            WriteTime(writer, crl.EffectiveDate);
+
+            // Next Update
+            WriteTime(writer, crl.NextUpdate);
+
+            // Revoked Certificates (optional but we include if present)
+            if (crl.Items.Count > 0) {
+                writer.PushSequence();
+                {
+                    foreach (var cert in crl.Items) {
+                        writer.PushSequence();
+                        {
+                            // Serial Number
+                            var serialNumber = BigInteger.Parse(cert.SerialNumber!.ToUpper(), System.Globalization.NumberStyles.AllowHexSpecifier);
+                            writer.WriteInteger(serialNumber);
+
+                            // Revocation Date
+                            WriteTime(writer, cert.RevocationDate);
+
+                            // CRL Entry Extensions
+                            writer.PushSequence();
+                            {
+                                // CRL Reason Code
+                                writer.PushSequence();
+                                {
+                                    writer.WriteObjectIdentifier(Oid_CRL_Reason);
+                                    // Write the reason code as an ENUMERATED in an OCTET STRING
+                                    var reasonWriter = new AsnWriter(AsnEncodingRules.DER);
+                                    reasonWriter.WriteEnumeratedValue(cert.ReasonCode);
+                                    writer.WriteOctetString(reasonWriter.Encode());
+                                }
+                                writer.PopSequence();
+                            }
+                            writer.PopSequence();
+                        }
+                        writer.PopSequence();
+                    }
+                }
+                writer.PopSequence();
+            }
+
+            // CRL Extensions (optional, context-specific [0] EXPLICIT Extensions)
+            writer.PushSequence(new Asn1Tag(TagClass.ContextSpecific, isConstructed: true, tagValue: 0));
+            {
+                writer.PushSequence(); // Extensions ::= SEQUENCE OF Extension
+                {
+                    // Authority Key Identifier Extension
+                    writer.PushSequence(); // Extension ::= SEQUENCE { extnID, extnValue }
+                    {
+                        writer.WriteObjectIdentifier(Oid_AuthorityKey);
+                        // Write the authority key identifier
+                        var authKeyWriter = new AsnWriter(AsnEncodingRules.DER);
+                        authKeyWriter.PushSequence();
+                        {
+                            var keyBytes = crl.AuthorizationKeyId?.HexToBytes() ?? Array.Empty<byte>();
+                            authKeyWriter.WriteOctetString(keyBytes, new Asn1Tag(TagClass.ContextSpecific, isConstructed: false, tagValue: 0));
+                        }
+                        authKeyWriter.PopSequence();
+                        writer.WriteOctetString(authKeyWriter.Encode());
+                    }
+                    writer.PopSequence();
+
+                    // CRL Number Extension
+                    writer.PushSequence(); // Extension ::= SEQUENCE { extnID, extnValue }
+                    {
+                        writer.WriteObjectIdentifier(Oid_CRLNumber);
+                        // Write the CRL number
+                        var crlNumWriter = new AsnWriter(AsnEncodingRules.DER);
+                        crlNumWriter.WriteInteger(crl.CrlNumber);
+                        writer.WriteOctetString(crlNumWriter.Encode());
+                    }
+                    writer.PopSequence();
+                }
+                writer.PopSequence(); // End Extensions SEQUENCE
+            }
+            writer.PopSequence(new Asn1Tag(TagClass.ContextSpecific, isConstructed: true, tagValue: 0));
+        }
+        writer.PopSequence();
+
+        return writer.Encode();
+    }
+
+    /// <summary>
+    /// Decodes a TBSCertList from DER format
+    /// </summary>
+    private static CertificateRevocationList DecodeTbsCertList(byte[] data) {
+        var crl = new CertificateRevocationList();
+        
+        var reader = new AsnReader(data, AsnEncodingRules.DER);
+        
+        // Check if this is a signed CRL (SEQUENCE containing TBSCertList, AlgorithmIdentifier, Signature)
+        // or just a TBSCertList directly
+        var firstTag = reader.PeekTag();
+        AsnReader tbsCertList;
+        
+        if (firstTag.HasSameClassAndValue(Asn1Tag.Sequence)) {
+            // Could be either signed CRL or TBSCertList
+            // Try to determine by looking ahead
+            var tempReader = reader.ReadSequence();
+            
+            // Check if first element is an INTEGER (version) - that would indicate it's TBSCertList
+            if (tempReader.PeekTag().HasSameClassAndValue(Asn1Tag.Integer)) {
+                // It's a TBSCertList
+                tbsCertList = tempReader;
+            } else {
+                // It might be a signed CRL, so this sequence contains TBSCertList, Algorithm, Signature
+                // The first element should still be the TBSCertList (which is also a SEQUENCE)
+                if (tempReader.PeekTag().HasSameClassAndValue(Asn1Tag.Sequence)) {
+                    // Read the TBSCertList
+                    tbsCertList = tempReader.ReadSequence();
+                } else {
+                    throw new InvalidOperationException("Invalid CRL structure");
                 }
             }
-            crl.Items.Add(new RevokedCertificate {
-                RevocationDate = revocationDate!.Value.DateTime,
-                SerialNumber = serialNumber!.Value.ToString("x16"),
-                ReasonCode = reason
-            });
+        } else {
+            throw new InvalidOperationException("CRL data must start with a SEQUENCE");
         }
-        foreach (DerAsnSequence item in info) {
-            var oid = item.Value[0] as DerAsnObjectIdentifier;
-            var oidString = string.Join(".", oid!.Value);
-            var data = item.Value[1] as DerAsnOctetString;
-            switch (oidString) {
-                case Oid_AuthorityKey: crl.AuthorizationKeyId = string.Join("", data!.Value.Skip(4).Select(x => x.ToString("X2"))); break;
-                case Oid_CRLNumber: crl.CrlNumber = (int)new BigInteger(data!.Value.Skip(3).ToArray()); break;
+
+        // Version (optional, v1 if not present, v2 = 1)
+        if (tbsCertList.PeekTag().HasSameClassAndValue(Asn1Tag.Integer)) {
+            _ = tbsCertList.ReadInteger();
+        }
+
+        // Signature Algorithm
+        _ = tbsCertList.ReadSequence();
+
+        // Issuer Name (RDNSequence)
+        // Try to parse flexibly - real-world CRLs may have variations
+        try {
+            var issuerSeq = tbsCertList.ReadSequence();
+            while (issuerSeq.HasData) {
+                try {
+                    // RDN is a SET OF AttributeTypeAndValue
+                    var rdnTag = issuerSeq.PeekTag();
+                    
+                    // Try to handle as SET (which is what real CRLs use)
+                    if (rdnTag.HasSameClassAndValue(new Asn1Tag(TagClass.Universal, isConstructed: true, tagValue: 17))) {
+                        // Read the SET contents directly (ReadSetOf skips the SET header)
+                        var setReader = issuerSeq.ReadSetOf();
+                        
+                        // Peek inside the SET to see what's there
+                        if (setReader.HasData) {
+                            var innerTag = setReader.PeekTag();
+                            if (innerTag.HasSameClassAndValue(Asn1Tag.Sequence)) {
+                                // It's a proper SEQUENCE inside the SET
+                                var attrSeq = setReader.ReadSequence();
+                                var oid = attrSeq.ReadObjectIdentifier();
+                                // Try PrintableString first, then fall back to other string types
+                                string value = "";
+                                if (attrSeq.HasData) {
+                                    var tag = attrSeq.PeekTag();
+                                    if (tag.TagValue == (int)UniversalTagNumber.PrintableString) {
+                                        value = attrSeq.ReadCharacterString(UniversalTagNumber.PrintableString);
+                                    } else if (tag.TagValue == (int)UniversalTagNumber.UTF8String) {
+                                        value = attrSeq.ReadCharacterString(UniversalTagNumber.UTF8String);
+                                    } else if (tag.TagValue == (int)UniversalTagNumber.IA5String) {
+                                        value = attrSeq.ReadCharacterString(UniversalTagNumber.IA5String);
+                                    } else {
+                                        try {
+                                            value = attrSeq.ReadCharacterString(UniversalTagNumber.PrintableString);
+                                        } catch {
+                                            value = attrSeq.ReadCharacterString(UniversalTagNumber.UTF8String);
+                                        }
+                                    }
+                                }
+
+                                switch (oid) {
+                                    case Oid_Issuer_C:
+                                        crl.Country = value;
+                                        break;
+                                    case Oid_Issuer_O:
+                                        crl.Organization = value;
+                                        break;
+                                    case Oid_Issuer_CN:
+                                        crl.IssuerCommonName = value;
+                                        break;
+                                }
+                            } else {
+                                // Unexpected format, skip this RDN
+                                continue;
+                            }
+                        }
+                    } else if (rdnTag.HasSameClassAndValue(Asn1Tag.Sequence)) {
+                        // Handle legacy SEQUENCE format (less common)
+                        var rdn = issuerSeq.ReadSequence();
+                        var attrSeq = rdn.ReadSequence();
+                        var oid = attrSeq.ReadObjectIdentifier();
+                        var value = attrSeq.ReadCharacterString(UniversalTagNumber.PrintableString);
+
+                        switch (oid) {
+                            case Oid_Issuer_C:
+                                crl.Country = value;
+                                break;
+                            case Oid_Issuer_O:
+                                crl.Organization = value;
+                                break;
+                            case Oid_Issuer_CN:
+                                crl.IssuerCommonName = value;
+                                break;
+                        }
+                    }
+                } catch {
+                    // If we can't parse this RDN, skip it and continue
+                    continue;
+                }
+            }
+        } catch {
+            // If we can't parse the issuer name at all, continue - it's not critical
+        }
+
+        // This Update - handle both UTCTime and GeneralizedTime
+        crl.EffectiveDate = ReadTime(tbsCertList).DateTime;
+
+        // Next Update - handle both UTCTime and GeneralizedTime
+        crl.NextUpdate = ReadTime(tbsCertList).DateTime;
+
+        // Revoked Certificates (optional)
+        if (tbsCertList.HasData && tbsCertList.PeekTag().HasSameClassAndValue(Asn1Tag.Sequence)) {
+            var revokedCertsSeq = tbsCertList.ReadSequence();
+            while (revokedCertsSeq.HasData) {
+                var certSeq = revokedCertsSeq.ReadSequence();
+                var serialNumber = certSeq.ReadInteger();
+                var revocationDate = ReadTime(certSeq).DateTime;
+                var reasonCode = RevokedCertificate.CRLReasonCode.Unused;
+
+                if (certSeq.HasData && certSeq.PeekTag().HasSameClassAndValue(Asn1Tag.Sequence)) {
+                    var extensionsSeq = certSeq.ReadSequence();
+                    while (extensionsSeq.HasData) {
+                        var extSeq = extensionsSeq.ReadSequence();
+                        var extOid = extSeq.ReadObjectIdentifier();
+                        if (extOid == Oid_CRL_Reason) {
+                            var reasonBytes = extSeq.ReadOctetString();
+                            var reasonReader = new AsnReader(reasonBytes, AsnEncodingRules.DER);
+                            reasonCode = (RevokedCertificate.CRLReasonCode)reasonReader.ReadEnumeratedValue(typeof(RevokedCertificate.CRLReasonCode));
+                        }
+                    }
+                }
+
+                crl.Items.Add(new RevokedCertificate {
+                    SerialNumber = serialNumber.ToString("x16"),
+                    RevocationDate = revocationDate,
+                    ReasonCode = reasonCode
+                });
             }
         }
+
+        // CRL Extensions (optional, context-specific [0])
+        try {
+            if (tbsCertList.HasData && tbsCertList.PeekTag().HasSameClassAndValue(new Asn1Tag(TagClass.ContextSpecific, isConstructed: true, tagValue: 0))) {
+                var contextSeq = tbsCertList.ReadSequence(new Asn1Tag(TagClass.ContextSpecific, isConstructed: true, tagValue: 0));
+                // Extensions ::= SEQUENCE OF Extension - read the outer SEQUENCE wrapper
+                var extSeq = contextSeq.ReadSequence();
+                while (extSeq.HasData) {
+                    try {
+                        var extension = extSeq.ReadSequence();
+                        var extOid = extension.ReadObjectIdentifier();
+                        // Skip optional critical BOOLEAN (default false)
+                        if (extension.HasData && extension.PeekTag().HasSameClassAndValue(Asn1Tag.Boolean)) {
+                            extension.ReadBoolean();
+                        }
+                        var extValue = extension.ReadOctetString();
+
+                        switch (extOid) {
+                            case Oid_AuthorityKey:
+                                try {
+                                    var authKeyReader = new AsnReader(extValue, AsnEncodingRules.DER);
+                                    var authKeySeq = authKeyReader.ReadSequence();
+                                    if (authKeySeq.HasData) {
+                                        var keyBytes = authKeySeq.ReadOctetString(new Asn1Tag(TagClass.ContextSpecific, isConstructed: false, tagValue: 0));
+                                        crl.AuthorizationKeyId = string.Concat(keyBytes.Select(b => b.ToString("X2")));
+                                    }
+                                } catch {
+                                    // Ignore errors in parsing authority key
+                                }
+                                break;
+                            case Oid_CRLNumber:
+                                try {
+                                    var crlNumReader = new AsnReader(extValue, AsnEncodingRules.DER);
+                                    crl.CrlNumber = (int)crlNumReader.ReadInteger();
+                                } catch {
+                                    // Ignore errors in parsing CRL number
+                                }
+                                break;
+                        }
+                    } catch {
+                        // If we can't parse this extension, skip it
+                        continue;
+                    }
+                }
+            }
+        } catch {
+            // If we can't parse extensions at all, that's okay - they're optional
+        }
+
         return crl;
     }
 
     /// <summary>
-    /// Create a CRL from raw DER ASN.1 data
+    /// Creates the CRL envelope with RSA signature
     /// </summary>
-    /// <returns></returns>
+    /// <param name="signingKey">The RSA key to sign with</param>
+    /// <returns>The signed and serialized CRL</returns>
+    public byte[] SignAndSerialize(RSA signingKey) {
+        if (signingKey == null) throw new ArgumentNullException(nameof(signingKey));
+        if (_rawTbsCertList == null) throw new InvalidOperationException("TBS CertList data not available");
+
+        // Sign the TBS data
+        var signature = signingKey.SignData(_rawTbsCertList, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+
+        // Create the outer sequence: TBSCertList, SignatureAlgorithm, Signature
+        var writer = new AsnWriter(AsnEncodingRules.DER);
+        writer.PushSequence();
+        {
+            // TBSCertList (write raw bytes directly)
+            writer.WriteEncodedValue(_rawTbsCertList);
+
+            // SignatureAlgorithm
+            writer.PushSequence();
+            {
+                writer.WriteObjectIdentifier(Oid_sha256RSA);
+                writer.WriteNull();
+            }
+            writer.PopSequence();
+
+            // Signature (as BIT STRING)
+            writer.WriteBitString(signature, unusedBitCount: 0);
+        }
+        writer.PopSequence();
+
+        return writer.Encode();
+    }
+
+    /// <summary>
+    /// Create a CRL from raw DER ASN.1 data (signed CRL structure)
+    /// </summary>
     public static CertificateRevocationListSequence Load(byte[] rawData) {
         if (rawData == null) {
             throw new ArgumentNullException(nameof(rawData));
         }
 
-        CertificateRevocationListSequence sequence;
-        using (var decoder = new DefaultDerAsnDecoder()) {
-            decoder.RegisterType(ContextSpecificSequence.Id, (dcdr, identifier, data) => new ContextSpecificSequence(dcdr, identifier, data));
-            decoder.RegisterType(OctetStringSequence.Id, (dcdr, identifier, data) => new OctetStringSequence(dcdr, identifier, data));
-            decoder.RegisterType(DerAsnEnumerated.Id, (dcdr, identifier, data) => new DerAsnEnumerated(dcdr, identifier, data));
-            sequence = new CertificateRevocationListSequence(((DerAsnSequence)decoder.Decode(rawData)).Value);
-        }
-        return sequence;
+        // Pass the raw data directly - DecodeTbsCertList will handle
+        // both signed CRL and TBSCertList structures
+        return new CertificateRevocationListSequence(rawData);
     }
 
+    /// <summary>
+    /// Extracts the CRL data
+    /// </summary>
+    public CertificateRevocationList Extract() => Crl;
+
+    /// <summary>
+    /// Helper method to write either UTCTime or GeneralizedTime depending on the year.
+    /// X.509 DER requires UTCTime for years 1950–2049 and GeneralizedTime for 2050+.
+    /// </summary>
+    private static void WriteTime(AsnWriter writer, DateTimeOffset value) {
+        if (value.Year >= 1950 && value.Year <= 2049) {
+            writer.WriteUtcTime(value);
+        } else {
+            writer.WriteGeneralizedTime(value);
+        }
+    }
+
+    /// <summary>
+    /// Helper method to read either UTCTime or GeneralizedTime
+    /// Real-world CRLs may use either format
+    /// </summary>
+    private static DateTimeOffset ReadTime(AsnReader reader) {
+        var tag = reader.PeekTag();
+        
+        // UTCTime (tag 23 = 0x17)
+        if (tag.HasSameClassAndValue(new Asn1Tag(TagClass.Universal, isConstructed: false, tagValue: 23))) {
+            return reader.ReadUtcTime();
+        }
+        
+        // GeneralizedTime (tag 24 = 0x18)
+        if (tag.HasSameClassAndValue(new Asn1Tag(TagClass.Universal, isConstructed: false, tagValue: 24))) {
+            return reader.ReadGeneralizedTime();
+        }
+        
+        // Default to trying both
+        try {
+            return reader.ReadGeneralizedTime();
+        } catch {
+            try {
+                return reader.ReadUtcTime();
+            } catch {
+                throw new InvalidOperationException($"Unable to read time value with tag {tag}");
+            }
+        }
+    }
 }
 
 /// <summary>
-/// Dto that represents a revocation list
+/// DTO that represents a revocation list
 /// </summary>
 public class CertificateRevocationList
 {
     /// <summary>
-    /// Issueer CN
+    /// Issuer CN
     /// </summary>
     public string? IssuerCommonName { get; set; }
     /// <summary>
@@ -250,19 +542,19 @@ public class CertificateRevocationList
     /// </summary>
     public string? Country { get; set; }
     /// <summary>
-    /// Looks like the id of the list.
+    /// CRL Number (looks like the id of the list)
     /// </summary>
     public int CrlNumber { get; set; }
     /// <summary>
-    /// Date when the list will become effective.
+    /// Date when the list becomes effective
     /// </summary>
     public DateTime EffectiveDate { get; set; }
     /// <summary>
-    /// When the list should be looked upon again
+    /// When the list should be checked again
     /// </summary>
     public DateTime NextUpdate { get; set; }
     /// <summary>
-    /// The Subject key Identitfier of the issuing certificate.
+    /// The Subject Key Identifier of the issuing certificate
     /// </summary>
     public string? AuthorizationKeyId { get; set; }
     /// <summary>
@@ -277,7 +569,7 @@ public class CertificateRevocationList
 public class RevokedCertificate
 {
     /// <summary>
-    /// Certificate serialnumber.
+    /// Certificate serial number (hex format)
     /// </summary>
     public string? SerialNumber { get; set; }
     /// <summary>
@@ -311,7 +603,7 @@ public class RevokedCertificate
         /// </summary>
         AffiliationChanged = 3,
         /// <summary>
-        /// Replaced by a new certificate
+        /// Superseded - Replaced by a new certificate
         /// </summary>
         Superseded = 4,
         /// <summary>
@@ -335,6 +627,5 @@ public class RevokedCertificate
     /// <summary>
     /// String representation
     /// </summary>
-    /// <returns></returns>
     public override string ToString() => $"{SerialNumber} {RevocationDate}";
 }

@@ -137,7 +137,7 @@ public class HttpSignatureDelegatingHandler : DelegatingHandler
         Debug.WriteLine($"{nameof(HttpSignatureDelegatingHandler)}: Raw Certificate: {rawCertificate}");
         X509Certificate2 certificate;
         try {
-            certificate = new X509Certificate2(Convert.FromBase64String(rawCertificate));
+            certificate = X509CertificateLoader.LoadCertificate(Convert.FromBase64String(rawCertificate));
         } catch (Exception inner) {
             var error = $"Signature Certificate not in a valid format. Expected a base64 encoded x509.";
             throw new Exception(error, inner);

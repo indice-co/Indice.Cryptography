@@ -61,7 +61,7 @@ public static class CertificateStoreExtensions
     /// <returns></returns>
     public static async Task<CertificateDetails> Add(this ICertificatesStore store, X509Certificate2 certificate, object metadata) {
         var privateKey = certificate.GetRSAPrivateKey();
-        var certBase64 = certificate.ExportToPEM();
+        var certBase64 = certificate.ExportCertificatePem();
         //var publicBase64 = privateKey.ToSubjectPublicKeyInfo();
         var privateBase64 = privateKey!.ToRSAPrivateKey();
         var keyId = certificate.GetSubjectKeyIdentifier();

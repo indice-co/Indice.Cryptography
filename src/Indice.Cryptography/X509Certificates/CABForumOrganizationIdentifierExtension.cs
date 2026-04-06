@@ -1,9 +1,8 @@
-﻿using System.Linq;
+﻿using System;
+using System.Formats.Asn1;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
-using DerConverter;
-using DerConverter.Asn.KnownTypes;
-using DerConverter.Asn;
 
 namespace Indice.Cryptography.X509Certificates;
 
@@ -27,14 +26,9 @@ public class CABForumOrganizationIdentifierExtension : X509Extension
     /// <param name="organizationIdentifier"></param>
     /// <param name="critical"></param>
     public CABForumOrganizationIdentifierExtension(CABForumOrganizationIdentifier organizationIdentifier, bool critical) {
-        Oid = new Oid(Oid_CabForumOrganizationIdentifier, "CRL Distribution Points");
+        Oid = new Oid(Oid_CabForumOrganizationIdentifier, "CAB Forum Organization Identifier");
         Critical = critical;
-        var container = new DerAsnSequence(new DerAsnType[] {
-            new DerAsnPrintableString(organizationIdentifier.SchemeIdentifier),
-            new DerAsnPrintableString(organizationIdentifier.Country),
-            new DerAsnUtf8String(organizationIdentifier.Reference),
-        });
-        RawData = DerConvert.Encode(container).ToArray();
+        RawData = EncodeOrganizationIdentifier(organizationIdentifier);
         _OrganizationIdentifier = organizationIdentifier;
         _decoded = true;
     }
@@ -45,7 +39,6 @@ public class CABForumOrganizationIdentifierExtension : X509Extension
     /// <param name="encodedExtension"></param>
     /// <param name="critical"></param>
     public CABForumOrganizationIdentifierExtension(AsnEncodedData encodedExtension, bool critical) : base(encodedExtension, critical) {
-
     }
 
     private bool _decoded = false;
@@ -73,13 +66,42 @@ public class CABForumOrganizationIdentifierExtension : X509Extension
         _decoded = false;
     }
 
+    private static byte[] EncodeOrganizationIdentifier(CABForumOrganizationIdentifier orgId) {
+        var writer = new AsnWriter(AsnEncodingRules.DER);
+        writer.PushSequence();
+        {
+            if (orgId.SchemeIdentifier is null) {
+                writer.WriteNull();
+            } else {
+                writer.WriteCharacterString(UniversalTagNumber.PrintableString, orgId.SchemeIdentifier);
+            }
+            writer.WriteCharacterString(UniversalTagNumber.PrintableString, orgId.Country);
+            writer.WriteCharacterString(UniversalTagNumber.UTF8String, orgId.Reference);
+        }
+        writer.PopSequence();
+
+        return writer.Encode();
+    }
+
     private void DecodeExtension() {
-        _OrganizationIdentifier = new CABForumOrganizationIdentifier();
-        var root = DerConvert.Decode(RawData) as DerAsnSequence;
-        _OrganizationIdentifier.SchemeIdentifier = ((DerAsnPrintableString)root!.Value[0]).Value;
-        _OrganizationIdentifier.Country = ((DerAsnPrintableString)root.Value[1]).Value;
-        _OrganizationIdentifier.Reference = ((DerAsnUtf8String)root.Value[2]).Value;
-        _decoded = true;
+
+        try {
+            var reader = new AsnReader(RawData, AsnEncodingRules.DER);
+            var seqReader = reader.ReadSequence();
+            string? schemeIdentifier;
+            if (seqReader.PeekTag().HasSameClassAndValue(Asn1Tag.Null)) {
+                seqReader.ReadNull();
+                schemeIdentifier = null;
+            } else {
+                schemeIdentifier = seqReader.ReadCharacterString(UniversalTagNumber.PrintableString);
+            }
+            var country = seqReader.ReadCharacterString(UniversalTagNumber.PrintableString);
+            var reference = seqReader.ReadCharacterString(UniversalTagNumber.UTF8String);
+            _OrganizationIdentifier = new CABForumOrganizationIdentifier(schemeIdentifier, country, reference);
+            _decoded = true;
+        } catch (Exception ex) {
+            throw new InvalidOperationException("Failed to decode CABForumOrganizationIdentifier extension.", ex);
+        }
     }
 }
 
@@ -89,12 +111,6 @@ public class CABForumOrganizationIdentifierExtension : X509Extension
 public class CABForumOrganizationIdentifier
 {
     /// <summary>
-    /// default constructor
-    /// </summary>
-    public CABForumOrganizationIdentifier() {
-
-    }
-    /// <summary>
     /// Create the cab forum by providing the NCAId (as defined in PSD2)
     /// </summary>
     /// <param name="identifier"></param>
@@ -103,6 +119,18 @@ public class CABForumOrganizationIdentifier
         Country = identifier.CountryCode;
         Reference = string.Join('-', new[] { identifier.SupervisionAuthority, identifier.AuthorizationNumber }.Where(x => !string.IsNullOrEmpty(x)));
     }
+
+    /// <summary>
+    /// Create the cab forum by providing its elements
+    /// </summary>
+    /// <param name="schemeIdentifier">Scheme Identifier. Example "PSD"</param>
+    /// <param name="country">Country two letter ISO. Example "GR"</param>
+    /// <param name="reference">Reference number.</param>
+    public CABForumOrganizationIdentifier(string? schemeIdentifier, string country, string reference) {
+        SchemeIdentifier = schemeIdentifier;
+        Country = country ?? throw new ArgumentNullException(nameof(country));
+        Reference = reference ?? throw new ArgumentNullException(nameof(reference));
+    }
     /// <summary>
     /// Scheme Identifier. Example "PSD"
     /// </summary>
@@ -110,11 +138,11 @@ public class CABForumOrganizationIdentifier
     /// <summary>
     /// Country two letter ISO. Example "GR"
     /// </summary>
-    public string? Country { get; set; }
+    public string Country { get; set; }
     /// <summary>
     /// Reference number.
     /// </summary>
-    public string? Reference { get; set; }
+    public string Reference { get; set; }
 
     /// <inheritdoc/>
     public override string ToString() => $"{SchemeIdentifier}{Country}-{Reference}";

@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using Indice.Cryptography.X509Certificates;
@@ -44,10 +45,12 @@ public class Psd2ClientCertificateValidator
                 errorList.Add("This is not a valid QWAC or QCseal. Missing the PSD2 type QcStatement");
             if (type.HasValue && type.Value != qcStatements!.Type) { 
                 errorList.Add($"{qcStatements.Type} is not a valid QcTypeIdentifier for the current use of this certificate. Expected option {type}");
-            } else if ((int)qcStatements!.Type < 0 && 3 < (int)qcStatements.Type) {
-                errorList.Add($"{qcStatements.Type} is not a valid QcTypeIdentifier. Valid options include {QcTypeIdentifiers.Web}, {QcTypeIdentifiers.eSeal} and {QcTypeIdentifiers.eSign}");
+            } else {
+                if (!Enum.IsDefined(typeof(QcTypeIdentifiers), qcStatements!.Type) || qcStatements.Type == QcTypeIdentifiers.None) {
+                    errorList.Add($"{qcStatements.Type} is not a valid QcTypeIdentifier. Valid options include {QcTypeIdentifiers.Web}, {QcTypeIdentifiers.eSeal} and {QcTypeIdentifiers.eSign}");
+                }
             }
-            if (!qcStatements.Psd2Type.Roles.Any()) {
+            if (qcStatements?.Psd2Type?.Roles == null || !qcStatements.Psd2Type.Roles.Any()) {
                 errorList.Add("There are no roles defined in this certificate");
             }
             //if (!qcStatements.Psd2Type.AuthorizationId.IsValid) {
@@ -66,7 +69,7 @@ public class Psd2ClientCertificateValidator
         if (crlDistributionPoints == null || !crlDistributionPoints.Any()) {
             errorList.Add($"There is no CRL distribution points extension inside the certificate.");
         }
-        var authorizationId = qcStatements!.Psd2Type.AuthorizationId;
+        var authorizationId = qcStatements?.Psd2Type?.AuthorizationId;
         var organizationId = certificate.GetCABForumOrganizationIdentifier();
         var subjectOrgId = certificate.GetSubjectBuilder().GetOrganizationIdentifier();
         if (string.IsNullOrEmpty(subjectOrgId)) {

@@ -1,11 +1,8 @@
-﻿using System.Collections.Generic;
-using System.Linq;
-using System.Numerics;
+using System;
+using System.Collections.Generic;
+using System.Formats.Asn1;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
-using DerConverter;
-using DerConverter.Asn;
-using DerConverter.Asn.KnownTypes;
 
 namespace Indice.Cryptography.X509Certificates;
 
@@ -16,6 +13,7 @@ namespace Indice.Cryptography.X509Certificates;
 /// Typically, different certificate policies will relate to different applications which may use the certified key.
 /// </summary>
 /// <remarks>
+/// <code>
 /// id-ce-certificatePolicies OBJECT IDENTIFIER ::=  { id-ce 32 }
 ///
 /// anyPolicy OBJECT IDENTIFIER ::= { id-ce-certificatePolicies 0 }
@@ -61,6 +59,7 @@ namespace Indice.Cryptography.X509Certificates;
 ///     visibleString    VisibleString  (SIZE (1..200)),
 ///     bmpString        BMPString      (SIZE (1..200)),
 ///     utf8String       UTF8String     (SIZE (1..200)) }
+/// </code>
 /// </remarks>
 public class CertificatePoliciesExtension : X509Extension
 {
@@ -78,7 +77,7 @@ public class CertificatePoliciesExtension : X509Extension
     public CertificatePoliciesExtension(PolicyInformation[] policies, bool critical) {
         Oid = new Oid(Oid_CertificatePolicies, "Certificate Policies");
         Critical = critical;
-        RawData = DerConvert.Encode(new CertificatePolicies(policies)).ToArray();
+        RawData = EncodeCertificatePolicies(policies);
         _Policies = policies;
         _decoded = true;
     }
@@ -89,7 +88,6 @@ public class CertificatePoliciesExtension : X509Extension
     /// <param name="encodedExtension"></param>
     /// <param name="critical"></param>
     public CertificatePoliciesExtension(AsnEncodedData encodedExtension, bool critical) : base(encodedExtension, critical) {
-
     }
 
     private bool _decoded = false;
@@ -116,107 +114,130 @@ public class CertificatePoliciesExtension : X509Extension
         _decoded = false;
     }
 
+    private static byte[] EncodeCertificatePolicies(PolicyInformation[] policies) {
+        ArgumentNullException.ThrowIfNull(policies);
+
+        var writer = new AsnWriter(AsnEncodingRules.DER);
+        writer.PushSequence();
+        {
+            foreach (var policy in policies) {
+                if (string.IsNullOrEmpty(policy.PolicyIdentifier)) {
+                    throw new ArgumentException("Each policy must specify a non-null policy identifier.", nameof(policies));
+                }
+
+                writer.PushSequence();
+                {
+                    writer.WriteObjectIdentifier(policy.PolicyIdentifier);
+                    if (policy.PolicyQualifiers?.Count > 0) {
+                        writer.PushSequence();
+                        {
+                            foreach (var qualifier in policy.PolicyQualifiers) {
+                                writer.PushSequence();
+                                {
+                                    writer.WriteObjectIdentifier(qualifier.Identifier);
+                                    if (qualifier.Type == PolicyQualifierType.UserNotice) {
+                                        writer.PushSequence();
+                                        {
+                                            if (qualifier.UserNotice?.Reference != null) {
+                                                writer.PushSequence();
+                                                {
+                                                    writer.WriteCharacterString(UniversalTagNumber.UTF8String, qualifier.UserNotice.Reference.Organization ?? string.Empty);
+                                                    writer.PushSequence();
+                                                    {
+                                                        foreach (var noticeNumber in qualifier.UserNotice.Reference.NoticeNumbers) {
+                                                            writer.WriteInteger(noticeNumber);
+                                                        }
+                                                    }
+                                                    writer.PopSequence();
+                                                }
+                                                writer.PopSequence();
+                                            }
+                                            if (qualifier.UserNotice?.ExplicitText != null) {
+                                                writer.WriteCharacterString(UniversalTagNumber.UTF8String, qualifier.UserNotice.ExplicitText);
+                                            }
+                                        }
+                                        writer.PopSequence();
+                                    } else {
+                                        writer.WriteCharacterString(UniversalTagNumber.IA5String, qualifier.CPS_Uri ?? string.Empty);
+                                    }
+                                }
+                                writer.PopSequence();
+                            }
+                        }
+                        writer.PopSequence();
+                    }
+                }
+                writer.PopSequence();
+            }
+        }
+        writer.PopSequence();
+
+        return writer.Encode();
+    }
+
     private void DecodeExtension() {
-        var sequence = DerConvert.Decode(RawData) as DerAsnSequence;
-        _Policies = new CertificatePolicies(sequence!.Value).Extract();
-        _decoded = true;
-    }
-}
+        try {
+            var reader = new AsnReader(RawData, AsnEncodingRules.DER);
+            var mainSeq = reader.ReadSequence();
+            var policies = new List<PolicyInformation>();
 
-/// <summary>
-/// Certificate Policies Der ASN.1 sequense
-/// </summary>
-public class CertificatePolicies : DerAsnSequence
-{
-    /// <summary>
-    /// Constructs the <see cref="CertificatePolicies"/> from <see cref="List{PolicyInformation}"/>.
-    /// </summary>
-    /// <param name="policies"></param>
-    public CertificatePolicies(PolicyInformation[] policies) : base(new DerAsnType[0]) {
-        var list = new List<DerAsnSequence>();
-        foreach (var policy in policies) {
-            var definition = new List<DerAsnType>();
-            if (policy.PolicyIdentifier != null) {
-                var id = new DerAsnObjectIdentifier(DerAsnIdentifiers.Primitive.ObjectIdentifier, policy.PolicyIdentifier.OidToArray());
-                definition.Add(id);
-            }
-            if (policy.PolicyQualifiers?.Count > 0) {
-                var definitionQualifiers = new List<DerAsnType>();
-                foreach (var qualifier in policy.PolicyQualifiers) {
-                    var qualifierId = new DerAsnObjectIdentifier(DerAsnIdentifiers.Primitive.ObjectIdentifier, qualifier.Identifier.OidToArray());
-                    var qualifierValue = default(DerAsnType);
-                    if (qualifier.Type == PolicyQualifierType.UserNotice) {
-                        var noticeSequence = new List<DerAsnType>();
-                        if (qualifier.UserNotice?.Reference != null) {
-                            noticeSequence.Add(new DerAsnSequence(new DerAsnType[] {
-                                new DerAsnUtf8String(qualifier.UserNotice.Reference.Organization ?? string.Empty),
-                                new DerAsnSequence(qualifier.UserNotice.Reference.NoticeNumbers.Select(c => new DerAsnInteger(new BigInteger(c))).ToArray())
-                            }));
+            while (mainSeq.HasData) {
+                var policySeq = mainSeq.ReadSequence();
+                var policyIdentifier = policySeq.ReadObjectIdentifier();
+                var policy = new PolicyInformation {
+                    PolicyIdentifier = policyIdentifier,
+                };
+
+                if (policySeq.HasData && policySeq.PeekTag().HasSameClassAndValue(Asn1Tag.Sequence)) {
+                    var qualifierSeq = policySeq.ReadSequence();
+                    while (qualifierSeq.HasData) {
+                        var qualifierItemSeq = qualifierSeq.ReadSequence();
+                        var qualifierId = qualifierItemSeq.ReadObjectIdentifier();
+                        var qualifierValue = new PolicyQualifierInfo {
+                            Type = qualifierId == PolicyQualifierInfo.Oid_PolicyQualifier_UNotice ? PolicyQualifierType.UserNotice :
+                                   qualifierId == PolicyQualifierInfo.Oid_PolicyQualifier_CPS ? PolicyQualifierType.CPS :
+                                   throw new InvalidOperationException($"Unknown PolicyQualifierInfo Type {qualifierId}")
+                        };
+
+                        if (qualifierValue.Type == PolicyQualifierType.CPS) {
+                            qualifierValue.CPS_Uri = qualifierItemSeq.ReadCharacterString(UniversalTagNumber.IA5String);
+                        } else if (qualifierValue.Type == PolicyQualifierType.UserNotice) {
+                            var userNoticeSeq = qualifierItemSeq.ReadSequence();
+                            var userNotice = new UserNotice();
+
+                            if (userNoticeSeq.HasData && userNoticeSeq.PeekTag().HasSameClassAndValue(Asn1Tag.Sequence)) {
+                                var noticeRefSeq = userNoticeSeq.ReadSequence();
+                                var org = noticeRefSeq.ReadCharacterString(UniversalTagNumber.UTF8String);
+                                var noticeNumbersSeq = noticeRefSeq.ReadSequence();
+                                var noticeNumbers = new List<int>();
+                                while (noticeNumbersSeq.HasData) {
+                                    noticeNumbers.Add((int)noticeNumbersSeq.ReadInteger());
+                                }
+                                userNotice.Reference = new UserNotice.NoticeReference {
+                                    Organization = org,
+                                    NoticeNumbers = noticeNumbers.ToArray()
+                                };
+                            }
+
+                            if (userNoticeSeq.HasData) {
+                                userNotice.ExplicitText = userNoticeSeq.ReadCharacterString(UniversalTagNumber.UTF8String);
+                            }
+
+                            qualifierValue.UserNotice = userNotice;
                         }
-                        if (qualifier.UserNotice?.ExplicitText != null) {
-                            noticeSequence.Add(new DerAsnUtf8String(qualifier.UserNotice.ExplicitText));
-                        }
-                        qualifierValue = new DerAsnSequence(noticeSequence.ToArray());
-                    } else {
-                        qualifierValue = new DerAsnIa5String(qualifier.CPS_Uri ?? string.Empty);
+
+                        policy.PolicyQualifiers.Add(qualifierValue);
                     }
-                    definitionQualifiers.Add(new DerAsnSequence(new DerAsnType[] { 
-                        qualifierId,
-                        qualifierValue      
-                    }));
                 }
-                definition.Add(new DerAsnSequence(definitionQualifiers.ToArray()));
-                
+
+                policies.Add(policy);
             }
-            list.Add(new DerAsnSequence(definition.ToArray()));
+
+            _Policies = policies.ToArray();
+            _decoded = true;
+        } catch (Exception ex) {
+            throw new InvalidOperationException("Failed to decode Certificate Policies extension.", ex);
         }
-        Value = list.ToArray();
-    }
-
-    /// <summary>
-    /// constructs the <see cref="CertificatePolicies"/> from an array of ANS.1 Der encoded data.
-    /// </summary>
-    /// <param name="value"></param>
-    public CertificatePolicies(DerAsnType[] value) : base(value) {
-
-    }
-
-    /// <summary>
-    /// Deserializes the raw data into the list of <see cref="PolicyInformation"/>.
-    /// </summary>
-    /// <returns>Deserilized contents</returns>
-    public PolicyInformation[] Extract() {
-        var policies = new List<PolicyInformation>();
-
-        foreach (var item in Value) {
-            if (!(item is DerAsnSequence)) {
-                continue;
-            }
-            var policySequesce = item as DerAsnSequence;
-            var policyIdentifier = ((DerAsnObjectIdentifier)(policySequesce!.Value[0])).Value.ToOidString();
-            var policy = new PolicyInformation {
-                PolicyIdentifier = policyIdentifier,
-            };
-            if (policySequesce.Value.Length > 1 && policySequesce.Value[1] is DerAsnSequence qualifierListSequence) {
-                foreach (DerAsnSequence qualifier in qualifierListSequence.Value) {
-                    var qualifierId = ((DerAsnObjectIdentifier)(qualifier.Value[0])).Value.ToOidString();
-                    var qualifierValue = new PolicyQualifierInfo {
-                        Type = qualifierId == PolicyQualifierInfo.Oid_PolicyQualifier_UNotice ? PolicyQualifierType.UserNotice :
-                               qualifierId == PolicyQualifierInfo.Oid_PolicyQualifier_CPS ? PolicyQualifierType.CPS :
-                               throw new CryptographicException($"Unknown PolicyQualifierInfo Type {qualifierId}"),
-
-                    };
-                    if (qualifierValue.Type == PolicyQualifierType.CPS) {
-                        qualifierValue.CPS_Uri = ((DerAsnIa5String)(qualifier.Value[1])).Value;
-                    } else {
-                        // TODO implement the Read of PolicyInformation in case of PolicyQualifierType UserNotice.
-                    }
-                    policy.PolicyQualifiers.Add(qualifierValue);
-                }
-            }
-            policies.Add(policy);
-        }
-        return policies.ToArray();
     }
 }
 
@@ -258,7 +279,7 @@ public class PolicyInformation {
     public const string Oid_QCP_w = Oid_QCP + ".4";
     /// <summary>
     /// For general purpose CAs you can use an universal object identifier with value: 2.5.29.32.0. 
-    /// This identifier means “All Issuance Policies” and is sort of wildcard policy. 
+    /// This identifier means "All Issuance Policies" and is sort of wildcard policy. 
     /// Any policy will match this identifier during certificate chain validation
     /// </summary>
     /// <remarks>https://www.sysadmins.lv/blog-en/certificate-policies-extension-all-you-should-know-part-1.aspx</remarks>
@@ -269,24 +290,20 @@ public class PolicyInformation {
     /// </summary>
     public string? PolicyIdentifier { get; set; }
 
-    /// <summary>
-    /// Policy name
-    /// </summary>
-    public string? Name {
-        get {
-            switch (PolicyIdentifier) {
-                case Oid_QCP_n: return "QCP-n";
-                case Oid_QCP_l: return "QCP-l";
-                case Oid_QCP_n_qscd: return "QCP-n-qscd";
-                case Oid_QCP_l_qscd: return "QCP-l-qscd";
-                case Oid_QCP_w: return "QCP-w";
-                case Oid_AnyPolicy: return "AnyPolicy";
-                case "1.3.76.36.1.1.45.2": return "InfoCert policy for qualified [QWAC] OV certificates";
-                case "2.23.140.1.2.2": return "CabForum policy OV Certificates for Web Authentication";
-                default: return PolicyIdentifier;
-            }
-        }
-    }
+    /// <summary>Policy name</summary>
+    public string? Name => 
+        PolicyIdentifier switch {
+                Oid_QCP_n => "QCP-n",
+                Oid_QCP_l => "QCP-l",
+                Oid_QCP_n_qscd => "QCP-n-qscd",
+                Oid_QCP_l_qscd => "QCP-l-qscd",
+                Oid_QCP_w => "QCP-w",
+                Oid_AnyPolicy => "AnyPolicy",
+                "1.3.76.36.1.1.45.2" => "InfoCert policy for qualified [QWAC] OV certificates",
+                "2.23.140.1.2.2" => "CabForum policy OV Certificates for Web Authentication",
+                _ => PolicyIdentifier,
+            };
+     
 
     /// <summary>
     /// Policy Qualifier Information
@@ -318,12 +335,16 @@ public class PolicyQualifierInfo {
     /// unotice
     /// </summary>
     public const string Oid_PolicyQualifier_UNotice = Oid_PolicyQualifier + ".2";
-    internal string Identifier => Oid_PolicyQualifier + "." + (int)Type;
 
     /// <summary>
     /// The Oid of the qualifier
     /// </summary>
     public PolicyQualifierType Type { get; set; }
+
+    /// <summary>
+    /// The Identifier OID string
+    /// </summary>
+    public string Identifier => Oid_PolicyQualifier + "." + (int)Type;
 
     /// <summary>
     /// Qualifier CPS_Uri. Only polulated when <see cref="PolicyQualifierType.CPS"/>

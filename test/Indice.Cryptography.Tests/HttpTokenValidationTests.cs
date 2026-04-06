@@ -107,10 +107,11 @@ public class HttpTokenValidationTests
         var digestHeader = token.Digest.ToString();
         var signatureHeader = token.Signature.ToString();
 
-        // Get the public key from the private key in JWK format (as it would be received from identity server)
+        // Get the public key from the certificate in JWK format (as it would be received from identity server)
+        // Use the RSAParameters directly since the certificate public key doesn't have the private key
         var publicKey = X509CertificateLoader.LoadCertificate(Convert.FromBase64String(TEST_X509_PublicKey_2048));
-        var rsa = publicKey.GetRSAPublicKey();        
-        var validationKey = JsonWebKeyConverter.ConvertFromRSASecurityKey(new RsaSecurityKey(rsa) {
+        var rsaParams = publicKey.GetRSAPublicKey()!.ExportParameters(includePrivateParameters: false);
+        var validationKey = JsonWebKeyConverter.ConvertFromRSASecurityKey(new RsaSecurityKey(rsaParams) {
             KeyId = securityKey.KeyId
         });
 

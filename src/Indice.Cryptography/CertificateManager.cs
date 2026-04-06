@@ -9,6 +9,7 @@ using System.IO;
 using System.Linq;
 using System.Numerics;
 using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -159,27 +160,20 @@ public class CertificateManager
             return certificates;
         }
 
-        bool HasOid(X509Certificate2 certificate, string oid) =>
-            certificate.Extensions.OfType<X509Extension>()
-                .Any(e => string.Equals(oid, e.Oid!.Value, StringComparison.Ordinal));
-#if !XPLAT
-        bool IsExportable(X509Certificate2 c) =>
-            c.GetRSAPrivateKey() is RSACryptoServiceProvider rsaPrivateKey &&
-                rsaPrivateKey.CspKeyContainerInfo.Exportable ||
-            c.GetRSAPrivateKey() is RSACng cngPrivateKey &&
-                cngPrivateKey.Key.ExportPolicy == CngExportPolicies.AllowExport;
-#else
-        // Only check for RSA CryptoServiceProvider and do not fail in XPlat tooling as
-        // System.Security.Cryptography.Cng is not part of the shared framework and we don't
-        // want to bring the dependency in on CLI scenarios. This functionality will be used
-        // on CLI scenarios as part of the first run experience, so checking the exportability
-        // of the certificate is not important.
-        bool IsExportable(X509Certificate2 c) =>
-            ((c.GetRSAPrivateKey() is RSACryptoServiceProvider rsaPrivateKey &&
-                rsaPrivateKey.CspKeyContainerInfo.Exportable) || !(c.GetRSAPrivateKey() is RSACryptoServiceProvider));
-#endif
+        
     }
 
+    private static bool HasOid(X509Certificate2 certificate, string oid) =>
+        certificate.Extensions.OfType<X509Extension>()
+            .Any(e => string.Equals(oid, e.Oid!.Value, StringComparison.Ordinal));
+
+    [SupportedOSPlatform("windows")]
+    private static bool IsExportable(X509Certificate2 c) =>
+        c.GetRSAPrivateKey() is RSACryptoServiceProvider rsaPrivateKey &&
+            rsaPrivateKey.CspKeyContainerInfo.Exportable ||
+        c.GetRSAPrivateKey() is RSACng cngPrivateKey &&
+            cngPrivateKey.Key.ExportPolicy == CngExportPolicies.AllowExport;
+    
     private static void DisposeCertificates(IEnumerable<X509Certificate2> disposables) {
         foreach (var disposable in disposables) {
             try {
@@ -234,7 +228,7 @@ public class CertificateManager
         var subject = new SubjectBuilder().AddCommonName(request.CommonName)
                             .AddOrganization(request.Organization, request.OrganizationUnit)
                             .AddLocation(request.CountryCode, request.State, request.City)
-                            .AddOrganizationIdentifier(authorizationNumber)
+                            .AddOrganizationIdentifier(authorizationNumber!)
                             .Build();
         var extensions = new List<X509Extension>();
         var keyUsage = new X509KeyUsageExtension(X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.KeyEncipherment, critical: true);
@@ -248,11 +242,11 @@ public class CertificateManager
                     ClientAuthenticationEnhancedKeyUsageOidFriendlyName),
             },
             critical: true);
-        var policies = new CertificatePoliciesExtension(new[] { 
+        var policies = new CertificatePoliciesExtension(new[] {
             new PolicyInformation { PolicyIdentifier = PolicyInformation.Oid_QCP_w }
         }, critical: false);
         var qcStatements = new QualifiedCertificateStatementsExtension(
-            isCompliant: true, 
+            isCompliant: true,
             psd2: new Psd2Attributes() {
                 AuthorityName = request.AuthorityName,
                 AuthorizationId = new NCAId(null, request.CountryCode, request.AuthorityId, null),
@@ -279,7 +273,7 @@ public class CertificateManager
         var sanBuilder = new SubjectAlternativeNameBuilder();
         sanBuilder.AddDnsName(request.CommonName);
         var organizationIdentifier = new CABForumOrganizationIdentifierExtension(
-            new CABForumOrganizationIdentifier(authorizationNumber), 
+            new CABForumOrganizationIdentifier(authorizationNumber),
             critical: false);
         extensions.Add(authorityInformation);
         extensions.Add(crlDistributionPoints);
@@ -287,7 +281,7 @@ public class CertificateManager
         extensions.Add(policies);
         extensions.Add(qcStatements);
         extensions.Add(keyUsage);
-        extensions.Add(sanBuilder.Build(critical:true));
+        extensions.Add(sanBuilder.Build(critical: true));
         extensions.Add(organizationIdentifier);
         var certificate = CreateCertificate(issuer ?? CreateRootCACertificate(issuerDomain), subject, extensions, notBefore, notAfter, out privateKey);
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) {
@@ -299,7 +293,7 @@ public class CertificateManager
                     certificate.FriendlyName = "Qualified certificate for electronic seals QSEAL";
                     break;
             }
-            
+
         }
         return certificate.CopyWithPrivateKey(privateKey);
     }
@@ -309,7 +303,7 @@ public class CertificateManager
         var extensions = new List<X509Extension>();
         var sanBuilder = new SubjectAlternativeNameBuilder();
         sanBuilder.AddDnsName(LocalhostHttpsDnsName);
-        
+
         var keyUsage = new X509KeyUsageExtension(X509KeyUsageFlags.KeyEncipherment, critical: true);
         var enhancedKeyUsage = new X509EnhancedKeyUsageExtension(
             new OidCollection() {
@@ -409,7 +403,7 @@ public class CertificateManager
             // On non OSX systems we need to export the certificate and import it so that the transient
             // key that we generated gets persisted.
             var export = certificate.Export(X509ContentType.Pkcs12, "");
-            imported = new X509Certificate2(export, "", X509KeyStorageFlags.PersistKeySet | X509KeyStorageFlags.Exportable);
+            imported = X509CertificateLoader.LoadPkcs12(export, "", X509KeyStorageFlags.PersistKeySet | X509KeyStorageFlags.Exportable);
             Array.Clear(export, 0, export.Length);
         }
 
@@ -421,7 +415,7 @@ public class CertificateManager
             store.Open(OpenFlags.ReadWrite);
             store.Add(imported);
             store.Close();
-        };
+        }
 
         return imported;
     }
@@ -485,7 +479,7 @@ public class CertificateManager
     /// <param name="diagnostics"></param>
     public void TrustCertificate(X509Certificate2 certificate, DiagnosticInformation? diagnostics = null) {
         // Strip certificate of the private key if any.
-        var publicCertificate = new X509Certificate2(certificate.Export(X509ContentType.Cert));
+        var publicCertificate = X509CertificateLoader.LoadCertificate(certificate.Export(X509ContentType.Cert));
 
         if (!IsTrusted(publicCertificate)) {
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) {
@@ -520,6 +514,7 @@ public class CertificateManager
         }
     }
 
+    [SupportedOSPlatform("windows")]
     private static void TrustCertificateOnWindows(X509Certificate2 certificate, X509Certificate2 publicCertificate, DiagnosticInformation? diagnostics = null) {
         publicCertificate.FriendlyName = certificate.FriendlyName;
 
@@ -540,7 +535,7 @@ public class CertificateManager
                 throw new UserCancelledTrustException();
             }
             store.Close();
-        };
+        }
     }
 
     /// <summary>

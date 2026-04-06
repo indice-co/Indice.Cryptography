@@ -68,7 +68,7 @@ public class HttpSignatureMiddleware
                 // Case when the client sends the public key in the corresponding header
                 X509Certificate2 cert;
                 try {
-                    cert = new X509Certificate2(Convert.FromBase64String(rawCertificate!));
+                    cert = X509CertificateLoader.LoadCertificate(Convert.FromBase64String(rawCertificate!));
                 } catch {
                     var error = $"Signature Certificate not in a valid format. Expected a base64 encoded x509.";
                     await WriteErrorResponse(httpContext, logger, HttpStatusCode.Unauthorized, error);

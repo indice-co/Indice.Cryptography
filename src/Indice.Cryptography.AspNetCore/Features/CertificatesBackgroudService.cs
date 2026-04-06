@@ -34,7 +34,7 @@ internal class CertificatesBackgroudService : BackgroundService
         var options = scope.ServiceProvider.GetRequiredService<CertificateEndpointsOptions>();
         var manager = new CertificateManager();
         var issuingCert = manager.CreateRootCACertificate(options.IssuerDomain);
-        var certBase64 = issuingCert.ExportToPEM();
+        var certBase64 = issuingCert.ExportCertificatePem();
         var pfxBytes = issuingCert.Export(X509ContentType.Pfx, options.PfxPassphrase);
         File.WriteAllBytes(Path.Combine(options.Path!, "ca.pfx"), pfxBytes);
         File.WriteAllText(Path.Combine(options.Path!, "ca.cer"), certBase64);

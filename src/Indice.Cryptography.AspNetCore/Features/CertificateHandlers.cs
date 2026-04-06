@@ -21,7 +21,7 @@ internal static class CertificateHandlers
             ICertificatesStore store, 
             CertificateEndpointsOptions options, 
             Psd2CertificateRequest request) {
-        var issuer = new X509Certificate2(Path.Combine(options.Path!, "ca.pfx"), options.PfxPassphrase, X509KeyStorageFlags.MachineKeySet);
+        var issuer = X509CertificateLoader.LoadPkcs12FromFile(Path.Combine(options.Path!, "ca.pfx"), options.PfxPassphrase, X509KeyStorageFlags.MachineKeySet);
         var manager = new CertificateManager();
         var cert = manager.CreateQualifiedCertificate(request, options.IssuerDomain, issuer, out _);
         var response = await store.Add(cert, request);
@@ -63,7 +63,7 @@ internal static class CertificateHandlers
     public static async Task<FileContentHttpResult> RevocationList(
             ICertificatesStore store,
             CertificateEndpointsOptions options) {
-        var issuer = new X509Certificate2(Path.Combine(options.Path!, "ca.pfx"), options.PfxPassphrase);
+        var issuer = X509CertificateLoader.LoadPkcs12FromFile(Path.Combine(options.Path!, "ca.pfx"), options.PfxPassphrase);
         var results = await store.GetRevocationList();
         var crl = new CertificateRevocationList {
             AuthorizationKeyId = issuer.GetSubjectKeyIdentifier()?.ToLower(),

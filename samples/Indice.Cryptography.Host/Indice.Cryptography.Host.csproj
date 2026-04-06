@@ -1,8 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
-    <TargetFrameworks>net9.0</TargetFrameworks>
-    <TargetFramework></TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <NoWarn>1701;1702;1705;1591</NoWarn>
@@ -10,9 +9,9 @@
     <UserSecretsId>c4cfa362-a2ea-4609-914d-7ab21fe13b51</UserSecretsId>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Swashbuckle.AspNetCore.SwaggerGen" Version="6.5.0" />
-    <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" Version="6.5.0" />
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.9" />
+    <PackageReference Include="Swashbuckle.AspNetCore.SwaggerGen" Version="10.0.0" />
+    <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" Version="10.0.0" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.5" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Indice.Cryptography.AspNetCore\Indice.Cryptography.AspNetCore.csproj" />

@@ -1,7 +1,5 @@
-﻿using System.IO;
-using System.Text;
+﻿using System.Text;
 using Indice.Cryptography.X509Certificates;
-using PemUtils;
 
 namespace System.Security.Cryptography.X509Certificates;
 
@@ -15,6 +13,7 @@ public static class CertificatesExtensions
     /// </summary>
     /// <param name="cert">The certificate to export</param>
     /// <returns>A PEM encoded string</returns>
+    [Obsolete("Use ExportCertificatePem instead.")]
     public static string ExportToPEM(this X509Certificate2 cert) {
         return MakePem(cert.Export(X509ContentType.Cert), "CERTIFICATE", insertLineBreaks: true);
     }
@@ -47,18 +46,7 @@ public static class CertificatesExtensions
     /// <param name="rsa">the RSA key</param>
     /// <returns>A PEM encoded string</returns>
     public static string ToSubjectPublicKeyInfo(this RSA rsa) {
-        var pem = default(string);
-        using (var stream = new MemoryStream()) {
-            using (var writer = new PemWriter(stream))
-                writer.WritePublicKey(rsa);
-
-            stream.Seek(0, SeekOrigin.Begin);
-
-            using (var reader = new StreamReader(stream, Encoding.UTF8)) {
-                pem = reader.ReadToEnd();
-            }
-        }
-        return pem;
+        return rsa.ExportSubjectPublicKeyInfoPem();
     }
 
     /// <summary>
@@ -67,32 +55,19 @@ public static class CertificatesExtensions
     /// <param name="rsa">the RSA key</param>
     /// <returns>A PEM encoded string</returns>
     public static string ToRSAPrivateKey(this RSA rsa) {
-        var pem = default(string);
-        using (var stream = new MemoryStream()) {
-            using (var writer = new PemWriter(stream))
-                writer.WritePrivateKey(rsa);
-
-            stream.Seek(0, SeekOrigin.Begin);
-
-            using (var reader = new StreamReader(stream, Encoding.UTF8)) {
-                pem = reader.ReadToEnd();
-            }
-        }
-        return pem;
+        return rsa.ExportRSAPrivateKeyPem();
     }
     
     /// <summary>
-    /// Export the private  key to a PEM format string
+    /// Import an RSA key from PEM format string
     /// </summary>
-    /// <param name="pem">the RSA key</param>
-    /// <returns>the RSA key</returns>
+    /// <param name="pem">the RSA key in PEM format</param>
+    /// <returns>the RSA key parameters</returns>
     public static RSAParameters ReadAsRSAKey(this string pem) {
-        var key = default(RSAParameters);
-        using (var stream = new MemoryStream(Encoding.UTF8.GetBytes(pem)))
-        using (var reader = new PemReader(stream)) {
-            key = reader.ReadRsaKey();
+        using (var rsa = RSA.Create()) {
+            rsa.ImportFromPem(pem);
+            return rsa.ExportParameters(includePrivateParameters: true);
         }
-        return key;
     }
 
     /// <summary>

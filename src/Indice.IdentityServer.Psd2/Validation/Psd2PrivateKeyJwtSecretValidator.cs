@@ -21,6 +21,7 @@ using IdentityServer4.Extensions;
 using IdentityServer4.Models;
 using IdentityServer4.Validation;
 using Microsoft.AspNetCore.Http;
+using Indice.Cryptography;
 #endif
 using Indice.Psd2.IdentityServer.Extensions;
 using Microsoft.Extensions.Logging;

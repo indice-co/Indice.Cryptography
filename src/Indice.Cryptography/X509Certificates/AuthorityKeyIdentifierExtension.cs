@@ -1,10 +1,8 @@
 ﻿using System;
+using System.Formats.Asn1;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
-using DerConverter;
-using DerConverter.Asn;
-using DerConverter.Asn.KnownTypes;
 
 namespace Indice.Cryptography.X509Certificates;
 
@@ -31,17 +29,12 @@ public class AuthorityKeyIdentifierExtension : X509Extension
     /// </summary>
     /// <param name="issuerKeyIdentifier">The subject key identifier of the issuer certificate in Hex string</param>
     /// <param name="critical"></param>
-    public AuthorityKeyIdentifierExtension(string issuerKeyIdentifier, bool critical) {
-        Oid = new Oid(Oid_AuthorityKeyIdentifier, "Authority Key Identifier");
-        Critical = critical;
-        RawData = DerConvert.Encode(
-            new DerAsnSequence(new[] {
-                new DerAsnOctetString(new DerAsnIdentifier(DerAsnTagClass.ContextSpecific, DerAsnEncodingType.Primitive, 0x0), HexStringToByteArray(issuerKeyIdentifier))
-            }));
+    public AuthorityKeyIdentifierExtension(string issuerKeyIdentifier, bool critical) 
+        : this(HexStringToByteArray(issuerKeyIdentifier), critical) {
         _KeyId = issuerKeyIdentifier;
         _decoded = true;
     }
-    
+
     /// <summary>
     /// Used to create the extension from typed model
     /// </summary>
@@ -50,10 +43,7 @@ public class AuthorityKeyIdentifierExtension : X509Extension
     public AuthorityKeyIdentifierExtension(byte[] issuerKeyIdentifier, bool critical) {
         Oid = new Oid(Oid_AuthorityKeyIdentifier, "Authority Key Identifier");
         Critical = critical;
-        RawData = DerConvert.Encode(
-            new DerAsnSequence(new[] {
-                new DerAsnOctetString(new DerAsnIdentifier(DerAsnTagClass.ContextSpecific, DerAsnEncodingType.Primitive, 0x0), issuerKeyIdentifier)
-            }));
+        RawData = EncodeAuthorityKeyIdentifier(issuerKeyIdentifier);
         _decoded = false;
     }
 
@@ -62,8 +52,8 @@ public class AuthorityKeyIdentifierExtension : X509Extension
     /// </summary>
     /// <param name="encodedExtension"></param>
     /// <param name="critical"></param>
-    public AuthorityKeyIdentifierExtension(AsnEncodedData encodedExtension, bool critical) : base(encodedExtension, critical) {
-
+    public AuthorityKeyIdentifierExtension(AsnEncodedData encodedExtension, bool critical)
+        : base(encodedExtension, critical) {
     }
 
     private bool _decoded = false;
@@ -90,31 +80,54 @@ public class AuthorityKeyIdentifierExtension : X509Extension
         _decoded = false;
     }
 
+    /// <summary>
+    /// Encode authority key identifier using System.Formats.Asn1
+    /// </summary>
+    private static byte[] EncodeAuthorityKeyIdentifier(byte[] keyBytes) {
+        var writer = new AsnWriter(AsnEncodingRules.DER);
+        writer.PushSequence();
+        {
+            // Context-specific [0] IMPLICIT OCTET STRING
+            writer.WriteOctetString(keyBytes, new Asn1Tag(TagClass.ContextSpecific, 0));
+        }
+        writer.PopSequence();
+
+        return writer.Encode();
+    }
+
     private void DecodeExtension() {
-        _KeyId = string.Join("", RawData.Skip(4).Select(x => x.ToString("X2")));
+        try {
+            var reader = new AsnReader(RawData, AsnEncodingRules.DER);
+            var seqReader = reader.ReadSequence();
+
+            // Read context-specific [0] IMPLICIT OCTET STRING
+            var implicitOctetStringTag = new Asn1Tag(TagClass.ContextSpecific, 0);
+            var tag = seqReader.PeekTag();
+            if (tag.HasSameClassAndValue(implicitOctetStringTag)) {
+                // Read the octet string with context-specific tag
+                var keyBytes = seqReader.ReadOctetString(implicitOctetStringTag);
+                _KeyId = string.Join("", keyBytes.ToArray().Select(x => x.ToString("X2")));
+            }
+        } catch (Exception ex) {
+            throw new InvalidOperationException("Failed to decode AuthorityKeyIdentifier extension.", ex);
+        }
+
         _decoded = true;
     }
 
     private static byte[] HexStringToByteArray(string hex) {
         if (hex.Length % 2 == 1)
-            throw new Exception("The binary key cannot have an odd number of digits");
+            throw new ArgumentException("The binary key cannot have an odd number of digits", nameof(hex));
 
         byte[] arr = new byte[hex.Length >> 1];
-
         for (int i = 0; i < hex.Length >> 1; ++i) {
             arr[i] = (byte)((GetHexVal(hex[i << 1]) << 4) + (GetHexVal(hex[(i << 1) + 1])));
         }
-
         return arr;
     }
 
     private static int GetHexVal(char hex) {
         int val = (int)hex;
-        //For uppercase A-F letters:
-        return val - (val < 58 ? 48 : 55);
-        //For lowercase a-f letters:
-        //return val - (val < 58 ? 48 : 87);
-        //Or the two combined, but a bit slower:
-        //return val - (val < 58 ? 48 : (val < 97 ? 55 : 87));
+        return val - (val < 58 ? 48 : (val < 97 ? 55 : 87));
     }
 }

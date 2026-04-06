@@ -1,22 +1,18 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
+using System.Formats.Asn1;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
-using DerConverter;
-using DerConverter.Asn;
-using DerConverter.Asn.KnownTypes;
-using Indice.Cryptography.X509Certificates.DerAsnTypes;
 
 namespace Indice.Cryptography.X509Certificates;
 
 /// <summary>
 /// Certificate Revocation List Distribution points extension.
-/// 
+/// <code>
 /// cRLDistributionPoints EXTENSION ::= {
-/// SYNTAX CRLDistPointSyntax
+///     SYNTAX CRLDistPointSyntax
 /// 
-/// IDENTIFIED BY id-ce-cRLDistributionPoints
+///     IDENTIFIED BY id-ce-cRLDistributionPoints
 /// }
 /// 
 /// CRLDistPointSyntax::= SEQUENCE SIZE(1..MAX) OF DistributionPoint
@@ -41,6 +37,7 @@ namespace Indice.Cryptography.X509Certificates;
 /// 	cessationOfOperation(5),
 /// 	certificateHold(6)
 /// }
+/// </code>
 /// </summary>
 public class CRLDistributionPointsExtension : X509Extension
 {
@@ -58,7 +55,13 @@ public class CRLDistributionPointsExtension : X509Extension
     public CRLDistributionPointsExtension(CRLDistributionPoint[] distributionPoints, bool critical) {
         Oid = new Oid(Oid_CRLDistributionPoints, "CRL Distribution Points");
         Critical = critical;
-        RawData = DerConvert.Encode(new CRLDistributionPoints(distributionPoints)).ToArray();
+
+        var writer = new AsnWriter(AsnEncodingRules.DER);
+        var list = new CRLDistributionPoints(distributionPoints);
+        list.Encode(writer);
+        RawData = writer.Encode();
+        
+        
         _DistributionPoints = distributionPoints;
         _decoded = true;
     }
@@ -69,11 +72,10 @@ public class CRLDistributionPointsExtension : X509Extension
     /// <param name="encodedExtension"></param>
     /// <param name="critical"></param>
     public CRLDistributionPointsExtension(AsnEncodedData encodedExtension, bool critical) : base(encodedExtension, critical) {
-
     }
 
     private bool _decoded = false;
-    private CRLDistributionPoint[] _DistributionPoints;
+    private CRLDistributionPoint[] _DistributionPoints = null!;
 
     /// <summary>
     /// The deserialized contents
@@ -97,73 +99,145 @@ public class CRLDistributionPointsExtension : X509Extension
     }
 
     private void DecodeExtension() {
-        using (var decoder = new DefaultDerAsnDecoder()) {
-            decoder.RegisterType(ContextSpecificSequence.Id, (dcdr, identifier, data) => new ContextSpecificSequence(dcdr, identifier, data));
-            decoder.RegisterType(ContextSpecificString.Id, (dcdr, identifier, data) => new ContextSpecificString(dcdr, identifier, data));
-            var sequence = decoder.Decode(RawData) as DerAsnSequence;
-            _DistributionPoints = new CRLDistributionPoints(sequence.Value).Extract();
+        try {
+            var reader = new AsnReader(RawData, AsnEncodingRules.DER);
+            _DistributionPoints = CRLDistributionPoints.Decode(reader);
             _decoded = true;
+        } catch (Exception ex) {
+            throw new InvalidOperationException("Failed to decode CRL Distribution Points extension.", ex);
         }
     }
-
 }
+
 
 /// <summary>
 /// CRL Distribution Points Der ASN.1 sequense
 /// </summary>
-public class CRLDistributionPoints : DerAsnSequence
+public class CRLDistributionPoints : List<CRLDistributionPoint>
 {
     /// <summary>
     /// Constructs the <see cref="CRLDistributionPoints"/> from <see cref="CRLDistributionPoint"/>.
     /// </summary>
     /// <param name="distributionPoints"></param>
-    public CRLDistributionPoints(CRLDistributionPoint[] distributionPoints) : base(new DerAsnType[0]) {
-        var list = new List<DerAsnSequence>();
-        foreach (var point in distributionPoints) {
-            var definition = new List<DerAsnType>();
-            if (point.FullName != null) {
-                var names = point.FullName.Select(x => new ContextSpecificString(x)).ToArray();
-                var fullName = new ContextSpecificSequence(names);
-                var distributionPointName = new ContextSpecificSequence(new[] { fullName });
-                definition.Add(distributionPointName);
-            }
-            if (point.Reason != null) {
-                var reason = new DerAsnBitString(new DerAsnIdentifier(DerAsnTagClass.ContextSpecific, DerAsnEncodingType.Primitive, DerAsnKnownTypeTags.Primitive.ObjectIdentifier), new System.Collections.BitArray(new[] { (byte)point.Reason }));
-                definition.Add(reason);
-            }
-            list.Add(new DerAsnSequence(definition.ToArray()));
-        }
-        Value = list.ToArray();
+    public CRLDistributionPoints(IEnumerable<CRLDistributionPoint> distributionPoints) : base(distributionPoints) {
+        
     }
 
     /// <summary>
-    /// constructs the <see cref="CRLDistributionPoints"/> from an array of ANS.1 Der encoded data.
+    /// Encode sequence 
     /// </summary>
-    /// <param name="value"></param>
-    public CRLDistributionPoints(DerAsnType[] value) : base(value) {
+    /// <param name="writer"></param>
+    public void Encode(AsnWriter writer) {
+        writer.PushSequence(); // CRLDistPointSyntax
+        {
+            foreach (var point in this) {
+                writer.PushSequence(); // DistributionPoint
+                {
+                    if (point.FullName != null && point.FullName.Length > 0) {
+                        // distributionPoint [0] DistributionPointName
+                        // DistributionPointName ::= CHOICE { fullName [0] GeneralNames, ... }
+                        var distributionPointTag = new Asn1Tag(TagClass.ContextSpecific, 0, isConstructed: true);
+                        var fullNameTag = new Asn1Tag(TagClass.ContextSpecific, 0, isConstructed: true);
 
+                        writer.PushSequence(distributionPointTag);
+                        {
+                            writer.PushSequence(fullNameTag);
+                            {
+                                // fullName [0] GeneralNames - write each URI as GeneralName [6]
+                                foreach (var name in point.FullName) {
+                                    // GeneralName [6] IA5String (uniformResourceIdentifier)
+                                    writer.WriteCharacterString(UniversalTagNumber.IA5String, name,
+                                        new Asn1Tag(TagClass.ContextSpecific, 6));
+                                }
+                            }
+                            writer.PopSequence(fullNameTag);
+                        }
+                        writer.PopSequence(distributionPointTag);
+                    }
+
+                    if (point.Reason.HasValue) {
+                        // reasons [1] ReasonFlags BIT STRING
+                        // RFC 5280 BIT STRING flags are numbered from the MSB of the first byte.
+                        // Allocate enough bytes for the selected bit position and compute the
+                        // correct byte index, bit index, and DER unused-bit count.
+                        int bitPosition = (int)point.Reason.Value;
+                        int byteIndex = bitPosition / 8;
+                        int bitIndexInByte = bitPosition % 8;
+                        byte[] reasonBytes = new byte[byteIndex + 1];
+                        reasonBytes[byteIndex] = (byte)(0x80 >> bitIndexInByte);
+                        int unusedBits = 7 - bitIndexInByte;
+                        writer.WriteBitString(reasonBytes, unusedBits,
+                            new Asn1Tag(TagClass.ContextSpecific, 1));
+                    }
+                }
+                writer.PopSequence(); // End DistributionPoint
+            }
+        }
+        writer.PopSequence(); // End CRLDistPointSyntax
     }
 
     /// <summary>
     /// Deserializes the raw data into the list of <see cref="Uri"/>.
     /// </summary>
     /// <returns>Deserilized contents</returns>
-    public CRLDistributionPoint[] Extract() {
+    public static CRLDistributionPoint[] Decode(AsnReader reader) {
+        var mainSeqReader = reader.ReadSequence();
         var points = new List<CRLDistributionPoint>();
-        
-        foreach (var item in Value) {
-            if (!(item is DerAsnSequence)) {
-                continue;
+        var contextSpecificTag = new Asn1Tag(TagClass.ContextSpecific, 0);
+        while (mainSeqReader.HasData) {
+            var pointReader = mainSeqReader.ReadSequence();
+            var point = new CRLDistributionPoint();
+
+            // Check for distributionPoint [0]
+            var tag = pointReader.PeekTag();
+            if (tag.TagClass == TagClass.ContextSpecific && (int)tag.TagValue == 0) {
+                var dpNameReader = pointReader.ReadSequence(new Asn1Tag(TagClass.ContextSpecific, 0));
+
+                // Check for fullname [0]
+                var dpTag = dpNameReader.PeekTag();
+                if (dpTag.TagClass == TagClass.ContextSpecific && (int)dpTag.TagValue == 0) {
+                    var fullNameReader = dpNameReader.ReadSequence(new Asn1Tag(TagClass.ContextSpecific, 0));
+                    var names = new List<string>();
+
+                    while (fullNameReader.HasData) {
+                        var gnTag = fullNameReader.PeekTag();
+                        if (gnTag.TagClass == TagClass.ContextSpecific && (int)gnTag.TagValue == 6) {
+                            var url = fullNameReader.ReadCharacterString(UniversalTagNumber.IA5String,
+                                new Asn1Tag(TagClass.ContextSpecific, 6));
+                            names.Add(url);
+                        } else {
+                            // Skip unsupported general name types
+                            break;
+                        }
+                    }
+
+                    point.FullName = names.ToArray();
+                }
             }
-            var crlDistributionPoint = item as DerAsnSequence;
-            var distributionPointName = crlDistributionPoint.Value[0] as ContextSpecificSequence;
-            var fullName = distributionPointName.Value[0] as ContextSpecificSequence;
 
-            var names = fullName.Value.Cast<ContextSpecificString>().Select(x => x.Value).ToArray();
+            // Check for reasons [1]
+            if (pointReader.HasData) {
+                var reasonTag = pointReader.PeekTag();
+                if (reasonTag.TagClass == TagClass.ContextSpecific && (int)reasonTag.TagValue == 1) {
+                    var reasonBits = pointReader.ReadBitString(out int _,
+                        new Asn1Tag(TagClass.ContextSpecific, 1));
+                    if (reasonBits.Length > 0) {
+                        // Find the bit position of the first set bit scanning from MSB across all bytes.
+                        for (int byteIndex = 0; byteIndex < reasonBits.Length; byteIndex++) {
+                            byte b = reasonBits[byteIndex];
+                            for (int bitIndex = 0; bitIndex < 8; bitIndex++) {
+                                if ((b & (0x80 >> bitIndex)) != 0) {
+                                    point.Reason = (CRLDistributionPoint.ReasonFlags)((byteIndex * 8) + bitIndex);
+                                    byteIndex = reasonBits.Length;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
 
-            points.Add(new CRLDistributionPoint {
-                FullName = names
-            });
+            points.Add(point);
         }
         return points.ToArray();
     }
@@ -177,7 +251,8 @@ public class CRLDistributionPoint
     /// <summary>
     /// The name
     /// </summary>
-    public string[] FullName { get; set; }
+    public string[] FullName { get; set; } = Array.Empty<string>();
+
     /// <summary>
     /// The reason flag
     /// </summary>
@@ -186,48 +261,33 @@ public class CRLDistributionPoint
     /// <summary>
     ///  the Name of the CRL issuer
     /// </summary>
-    public string CRLIssuer { get; set; }
+    public string? CRLIssuer { get; set; }
 
     /// <summary>
     /// Distribution Point Flags 
     /// </summary>
     public enum ReasonFlags : byte
     {
-        /// <summary>
-        /// Unused
-        /// </summary>
+        /// <summary>Unused</summary>
         Unused = 0,
-        /// <summary>
-        /// Key Compromise
-        /// </summary>
+        /// <summary>Key compromise</summary>
         KeyCompromise = 1,
-        /// <summary>
-        /// CACompromise
-        /// </summary>
+        /// <summary>CA compromise</summary>
         CACompromise = 2,
-        /// <summary>
-        /// AffiliationChanged
-        /// </summary>
+        /// <summary>Affiliation changed</summary>
         AffiliationChanged = 3,
-        /// <summary>
-        /// Superseded
-        /// </summary>
+        /// <summary>Superseded</summary>
         Superseded = 4,
-        /// <summary>
-        /// CessationOfOperation
-        /// </summary>
+        /// <summary>Cessation of operation</summary>
         CessationOfOperation = 5,
-        /// <summary>
-        /// CertificateHold
-        /// </summary>
+        /// <summary>CertificateHold</summary>
         CertificateHold = 6,
-        /// <summary>
-        /// PrivilegeWithdrawn
-        /// </summary>
+        /// <summary>PrivilegeWithdrawn</summary>
         PrivilegeWithdrawn = 7,
-        /// <summary>
-        /// AACompromise
-        /// </summary>
+        /// <summary>AACompromise</summary>
         AACompromise = 8
     }
+
+    /// <inheritdoc/>
+    public override string ToString() => $"CRL DP: {(FullName?.Length > 0 ? string.Join(";", FullName) : "No URLs")}";
 }
