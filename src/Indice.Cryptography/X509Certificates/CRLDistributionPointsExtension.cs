@@ -222,12 +222,15 @@ public class CRLDistributionPoints : List<CRLDistributionPoint>
                     var reasonBits = pointReader.ReadBitString(out int _,
                         new Asn1Tag(TagClass.ContextSpecific, 1));
                     if (reasonBits.Length > 0) {
-                        // Find the bit position of the first set bit scanning from MSB
-                        byte b = reasonBits[0];
-                        for (int i = 0; i < 8; i++) {
-                            if ((b & (0x80 >> i)) != 0) {
-                                point.Reason = (CRLDistributionPoint.ReasonFlags)i;
-                                break;
+                        // Find the bit position of the first set bit scanning from MSB across all bytes.
+                        for (int byteIndex = 0; byteIndex < reasonBits.Length; byteIndex++) {
+                            byte b = reasonBits[byteIndex];
+                            for (int bitIndex = 0; bitIndex < 8; bitIndex++) {
+                                if ((b & (0x80 >> bitIndex)) != 0) {
+                                    point.Reason = (CRLDistributionPoint.ReasonFlags)((byteIndex * 8) + bitIndex);
+                                    byteIndex = reasonBits.Length;
+                                    break;
+                                }
                             }
                         }
                     }
