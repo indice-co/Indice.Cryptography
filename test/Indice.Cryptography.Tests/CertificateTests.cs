@@ -28,7 +28,15 @@ public class CertificateTests
             keyId = keyId.ToLower(),
             algorithm = "SHA256WITHRSA"
         }));
-        Assert.True(true);
+
+        var certRoundtrip = X509CertificateLoader.LoadCertificate(System.Text.Encoding.ASCII.GetBytes(certBase64));
+        var qcStatements = certRoundtrip.Extensions.Where(x => x.Oid.Value == QualifiedCertificateStatementsExtension.Oid_QC_Statements)
+                                .Select(x => new QualifiedCertificateStatementsExtension(x, x.Critical))
+                                .FirstOrDefault();
+        Assert.NotNull(qcStatements);
+        Assert.Equal(QcTypeIdentifiers.Web, qcStatements.Statements.Type);
+        Assert.NotNull(qcStatements.Statements.Psd2Type);
+        Assert.Equal("800000005", qcStatements.Statements.Psd2Type.AuthorizationId.AuthorizationNumber);
     }
 
     [Fact]
@@ -99,10 +107,47 @@ public class CertificateTests
         Assert.True(true);
     }
 
+
+    const string QwacCertificatePem = @"-----BEGIN CERTIFICATE-----
+MIIGVTCCBT2gAwIBAgIUcGJLSmvcSs3yZnrmpVixx3JRgt0wDQYJKoZIhvcNAQEL
+BQAwgYoxCzAJBgNVBAYTAkdSMQ8wDQYDVQQIEwZBdHRpa2kxDzANBgNVBAcTBkF0
+aGVuczEVMBMGA1UEChMMQXV0aG9yaXR5IENBMQswCQYDVQQLEwJJVDEaMBgGA1UE
+AxMRaWRlbnRpdHlzZXJ2ZXIuZ3IxGTAXBgkqhkiG9w0BCQEWCmNhQHRlc3QuZ3Iw
+HhcNMjYwNDA1MTE0NDEzWhcNMjcwNDA2MTE0NDEzWjCBhzEWMBQGA1UEAxMNd3d3
+LmluZGljZS5ncjESMBAGA1UEChMJSU5ESUNFIE9FMQwwCgYDVQQLEwNXRUIxCzAJ
+BgNVBAYTAkdSMQ8wDQYDVQQIEwZBdHRpa2kxDzANBgNVBAcTBkF0aGVuczEcMBoG
+A1UEYRMTUFNER1ItQk9HLTgwMDAwMDAwNTCCASIwDQYJKoZIhvcNAQEBBQADggEP
+ADCCAQoCggEBAMQHGgX5rJqYPXRtmkh1jU6gbX8CN9kVMybLPzbzx61qQjm1rki7
+UHCZojgM3P3mBguTy8W2dlOsnv+CweAilNrbp9vtjo6XW7IUWB8oeQzRxs+v1EFK
+BTHf2qm0K0CmZbo/efhR/Kf48V4Qlwrxp5GX1qCPvgc23baaqOfbp29jjdx1rRp8
+zTbKihYcAXUWvSdz+HkFtlvro9C9GQOvzjc+Tx30T8nUAy1hQGCDeiYUC2hMDPbI
+NNVwNPU+9FmIW+aqMhMAWF+W0XPgAdyx0G5kDxN48zWszGORCoZG6vmvazG4mviZ
+1x9Dk5lKOOHFeOj42vxRqqJbLVidkSaReZkCAwEAAaOCArIwggKuMEkGCCsGAQUF
+BwEBBD0wOzA5BggrBgEFBQcwAoYtaHR0cDovL2lkZW50aXR5c2VydmVyLmdyLy5j
+ZXJ0aWZpY2F0ZXMvY2EuY2VyMEMGA1UdHwQ8MDowOKA2oDSGMmh0dHA6Ly9pZGVu
+dGl0eXNlcnZlci5nci8uY2VydGlmaWNhdGVzL3Jldm9rZWQuY3JsMCAGA1UdJQEB
+/wQWMBQGCCsGAQUFBwMBBggrBgEFBQcDAjAUBgNVHSAEDTALMAkGBwQAi+xAAQQw
+ggFQBggrBgEFBQcBAwSCAUIwggE+MAgGBgQAjkYBATALBgYEAI5GAQMCARQwFwYG
+BACORgECMA0TA0VVUgIDBvVAAgEAMAgGBgQAjkYBBDATBgYEAI5GAQYwCQYHBACO
+RgEGAzBxBgYEAI5GAQUwZzBlFl9odHRwczovL3d3dy5ldHNpLm9yZy9kZWxpdmVy
+L2V0c2lfZW4vMzE5NDAwXzMxOTQ5OS8zMTk0MTIwNS8wMi4wMi4wM18yMC9lbl8z
+MTk0MTIwNXYwMjAyMDNhLnBkZhMCRU4wegYGBACBmCcCMHAwTDARBgcEAIGYJwEB
+DAZQU1BfQVMwEQYHBACBmCcBAgwGUFNQX1BJMBEGBwQAgZgnAQMMBlBTUF9BSTAR
+BgcEAIGYJwEEDAZQU1BfSUMMDkJhbmsgb2YgR3JlZWNlDBBHUi1CT0ctODAwMDAw
+MDA1MA4GA1UdDwEB/wQEAwIFoDAbBgNVHREBAf8EETAPgg13d3cuaW5kaWNlLmdy
+MCMGBWeBDAMBBBowGBMDUFNEEwJHUgwNQk9HLTgwMDAwMDAwNTAdBgNVHQ4EFgQU
+UJ0Aia77GIjguXDOxS+tNDNXIJIwHwYDVR0jBBgwFoAUzR1PVnJ2yWctM6kqUVDb
+lTxtuQAwDQYJKoZIhvcNAQELBQADggEBAJ5ScvvagUrKLNvqIoVOAp6F+RUSAv4P
+IBxrw+ZlyZ6RCcYH+uVEOkFKYJ4YUvAJEtAT0pRbxK+fqo+hErjdbuRmcsWB9bGK
+eaxLLjFJ4QORao75gt0lu5aoqduEBGDiZXOiSWIvaaY3iXavqfbMjjt1v6vdNzd2
+9TsqryYJFPjXDlJ+uIUEXGoz7qv8HdlsFUiXsy9ZSkQWt3t25Ay/ghd3eNhYW9g8
+iHHjNH6muLlC+IW50yq/EMM57PzfNcAd5MPnWhLSCtH7AA2CcflpbnUklyoF+O+3
+4ggJ2zKrq7Z+W5Cx3D6oZYVPtqZb3FwcVFqrVzrkH6Akt2SKgkpHODI=
+-----END CERTIFICATE-----";
+
     [Fact]
-    public void ImportBase64Certificate() {
-        var qwacBase64 = "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";
-        var qwacCert = X509CertificateLoader.LoadCertificate(Convert.FromBase64String(qwacBase64));
+    public void Import_Pem_QWAC_Certificate() {
+        var qwacCert = X509CertificateLoader.LoadCertificate(System.Text.Encoding.ASCII.GetBytes(QwacCertificatePem));
         var statements = default(QualifiedCertificateStatements);
         var policyInfos = default(PolicyInformation[]);
         var accessDescriptions = default(AccessDescription[]);
@@ -134,26 +179,28 @@ public class CertificateTests
                 keyId = ((X509SubjectKeyIdentifierExtension)extension).SubjectKeyIdentifier;
             }
         }
+        Assert.NotNull(qwacCert);
+        Assert.NotNull(statements); // QC Statements extension must be present in the test certificate.
+        Assert.Equal(QcTypeIdentifiers.Web, statements.Type);
+        Assert.Equal(20, statements.RetentionPeriod);
+        Assert.Equal("EUR", statements.LimitValue.CurrencyCode);
+        Assert.Equal(456000M, statements.LimitValue.Value);
         Assert.Equal("GR", statements.Psd2Type.AuthorizationId.CountryCode);
         Assert.Equal("BOG", statements.Psd2Type.AuthorizationId.SupervisionAuthority);
         Assert.Equal("800000005", statements.Psd2Type.AuthorizationId.AuthorizationNumber);
-        Assert.Equal("838852D2F347686E152CA6A34CACAE17509DBC35", authoritykeyId);
-        Assert.Equal("02D324A59192A2E6C6EED29E7AC69FB05073C745", keyId);
+        Assert.Equal("CD1D4F567276C9672D33A92A5150DB953C6DB900", authoritykeyId);
+        Assert.Equal("509D0089AEFB1888E0B970CEC52FAD3433572092", keyId);
         Assert.Collection(accessDescriptions, 
             (descriptor) => { 
-                Assert.Equal("http://identityserver.gr/certs/ca.cer", descriptor.AccessLocation);
+                Assert.Equal("http://identityserver.gr/.certificates/ca.cer", descriptor.AccessLocation);
                 Assert.Equal(AccessDescription.AccessMethodType.CertificationAuthorityIssuer, descriptor.AccessMethod);
-            },
-            (descriptor) => {
-                Assert.Equal("ldap:///CN=DC1W12-DC01-CA,CN=AIA,CN=Public%20Key%20Services,CN=Services,CN=Configuration,DC=chaniabank,DC=gr?cACertificate?base?objectClass=certificationAuthority", descriptor.AccessLocation);
-                Assert.Equal(AccessDescription.AccessMethodType.CertificationAuthorityIssuer, descriptor.AccessMethod);
-            }, 
-            (descriptor) => {
-                Assert.Equal("http://identityserver.gr/certs/ocsp", descriptor.AccessLocation);
-                Assert.Equal(AccessDescription.AccessMethodType.OnlineCertificateStatusProtocol, descriptor.AccessMethod);
             });
-        //Assert.NotEmpty(policyInfos);
-        //Assert.Equal("https://ec.europa.eu/information_society/policy/esignature/trusted-list/tl-mp.xml", accessDescriptions[0].ToString());
+        Assert.NotEmpty(policyInfos);
+        Assert.Collection(policyInfos, 
+            (descriptor) => {
+                Assert.True(descriptor.IsEUQualifiedCertificate);
+                Assert.Equal("QCP-w", descriptor.Name);
+            });
     }
 
     [Fact]

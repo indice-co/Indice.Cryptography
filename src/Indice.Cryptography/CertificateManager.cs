@@ -249,7 +249,7 @@ public class CertificateManager
             isCompliant: true,
             psd2: new Psd2Attributes() {
                 AuthorityName = request.AuthorityName,
-                AuthorizationId = new NCAId(null, request.CountryCode, request.AuthorityId, null),
+                AuthorizationId = new NCAId(null, request.CountryCode, request.AuthorityId, request.AuthorizationNumber),
                 HasAccountInformation = request.Roles.Aisp,
                 HasPaymentInitiation = request.Roles.Pisp,
                 HasIssuingOfCardBasedPaymentInstruments = request.Roles.Piisp,
@@ -268,7 +268,7 @@ public class CertificateManager
             }
         ], critical: false);
         var crlDistributionPoints = new CRLDistributionPointsExtension([
-            new CRLDistributionPoint {  FullName = new [] { $"http://{issuerDomain}/.certificates/revoked.crl" } },
+            new CRLDistributionPoint {  FullName = [ $"http://{issuerDomain}/.certificates/revoked.crl" ] },
         ], critical: false);
         var sanBuilder = new SubjectAlternativeNameBuilder();
         sanBuilder.AddDnsName(request.CommonName);
