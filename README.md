@@ -268,8 +268,7 @@ var crlExtension = new CRLDistributionPointsExtension(new[] {
 ## Dependencies
 
 - **.NET 8.0** or later
-- **DerConverter** - ASN.1 DER encoding/decoding
-- **PemUtils** - PEM format utilities  
+- **System.Formats.Asn1** - ASN.1 DER encoding/decoding
 - **System.IdentityModel.Tokens.Jwt** - JWT token handling
 - **System.Security.Cryptography.*** - Core cryptography APIs
 
